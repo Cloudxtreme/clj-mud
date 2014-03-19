@@ -6,51 +6,90 @@
 
 (def command-handlers (atom {}))
 
+(defn notify
+  [& rest]
+  (apply println rest))
+
+(defn normalize-input
+  [line]
+  (let [trimmed-line (string/trim line)]
+    (if (= \" (first trimmed-line))
+      (str "say " (subs trimmed-line 1))
+      (if (= \: (first trimmed-line))
+        (str "pose " (subs trimmed-line 1))
+        ;; Otherwise, normal case.
+        trimmed-line))))
+
 (defn parse-command
   [line]
-  (let [parsed (string/split line #"\s" 2)]
-    (if (= 1 (count parsed))
-      (list (keyword (first parsed)))
-      (list (keyword (first parsed)) (second parsed)))))
-
+  (let [split-line (string/split (normalize-input line) #"\s" 2)]
+    (if (not (empty? split-line))
+      (let [trigger (keyword (first split-line))]
+        (if (contains? (set (keys @command-handlers)) trigger)
+          (if (= 1 (count split-line))
+            (list trigger)
+            (list trigger (second split-line))))))))
+  
 (defn look [room]
-  (println (:name room))
-  (println)
-  (println (:desc room))
-  (println)
-  (println "    Exits:" (rooms/get-exit-names (:id room))))
+  (notify (:name room))
+  (notify)
+  (notify (:desc room))
+  (notify)
+  (notify "    Exits:" (string/join ", " (rooms/get-exit-names (:id room)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Commands are stored as a map of triggers to command handlers.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn register-command
   [command handler]
   (swap! command-handlers assoc command handler))
 
-;; Handlers
-(defn say-handler [args]
-  (println "You said: " args))
+(defn help-handler
+  [args]
+  (notify "Oh dear. Don't be silly. Help isn't implemented yet.")
+  (notify "(but seriously, type 'quit' to quit)"))
 
-(defn look-handler [args]
+;; To be improved when multi-user support is added
+(defn say-handler
+  [args]
+  (notify (str "You say, \"" args "\"")))
+
+;; To be improved when multi-user support is added
+(defn pose-handler
+  [args]
+  (notify (str "*** [" args "]")))
+
+(defn look-handler
+  [args]
   (if (not (nil? world/current-room))
     (look @@world/current-room)
-    (println "You don't see that here")))
+    (notify "You don't see that here")))
 
-(defn walk-handler [direction]
+(defn walk-handler
+  [direction]
   (let [exit (rooms/find-exit-by-name (:id @@world/current-room) direction)]
-    (if (not (nil? exit))
-      (do
-        (println "Walking" direction)
-        (rooms/move-to (:to exit))
-        (look @@world/current-room))
-      (println "There's no exit in that direction!"))))
+    (if (nil? direction)
+      (notify "Where?")
+      (if (not (nil? exit))
+        (do
+          (rooms/move-to (:to exit))
+          (look @@world/current-room))
+        (notify "There's no exit in that direction!")))))
 
-(defn setup-world []
-  (register-command :say say-handler)
+(defn setup-world
+  "Builds a very simple starter world. "
+  []
+  (register-command :help help-handler)
   (register-command :look look-handler)
-  (register-command :walk walk-handler)
+  (register-command :go walk-handler)
+  (register-command :say say-handler)
+  (register-command :pose pose-handler)
 
-  (rooms/make "The Den" "The Den is lovely")
-  (rooms/make "The Hallway" "The Hallway is lovely")
-  (rooms/make "The Garden" "The Garden is full of plants")
-  (rooms/make "The Bathroom" "There's a little bathtub here")
+  (rooms/make "The Center of the Universe" "The Room at the Center of it All")
+  (rooms/make "Hallway" "A long hallway.")
+  (rooms/make "Foyer" "A Foyer.")
+  (rooms/make "Bedroom" "It's a bedroom.")
 
   (rooms/make-exit 1 2 "east")  ; Den east to Hallway
   (rooms/make-exit 2 1 "west")  ; Hallway west to Den
@@ -61,38 +100,42 @@
 
   (rooms/move-to 1))
 
+(defn- get-args [command]
+  (if (not (nil? command))
+    (second command)))
+
+(defn- get-handler [command]
+  (if (not (nil? command))
+    ((first command) @command-handlers)))
+
+(defn dispatch-command
+  [input]
+  (if (not (empty? input))
+    (let [command (parse-command input)]
+      (if (nil? command)
+        (notify "Huh? (Type \"help\" for help)")
+        ((get-handler command) (get-args command))))))
+
 (defn main-loop
   "The main MUD Loop"
   []
   (print "mud> ")
   (flush)
-  (let [line (read-line)]
-    (when
-        (and 
-         (not (nil? line))
-         (not= :quit (keyword line)))
-
-      (if (> (count line) 0)
-        
-        (let [command-and-args (parse-command line)
-              command (first command-and-args)
-              args (second command-and-args)
-              handler (command @command-handlers)]
-
-          (if (not (nil? handler))
-            (handler args)
-            (println "Huh?"))))
-      
-      (recur))))
+  (let [input (read-line)]
+    (if (not (nil? input))
+      (let [trimmed (string/trim input)]
+        (when (not= :quit (keyword trimmed))
+          (dispatch-command trimmed)
+          (recur))))))
 
 (defn -main
   [& args]
-  (println "Setting up the world...")
+  (notify "Setting up the world...")
   (setup-world)
   (let [numrooms (count @world/rooms)]
-    (println "The world now has" numrooms
+    (notify "The world now has" numrooms
              (if (> numrooms 1) "rooms" "room")))
-  (println "You are in:" (:name @@world/current-room))
-  (println "Running MUD")
+  (notify "You are in:" (:name @@world/current-room))
+  (notify "Running MUD")
   (main-loop)
-  (println "\n\nGoodbye!"))
+  (notify "\n\nGoodbye!"))

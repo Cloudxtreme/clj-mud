@@ -31,7 +31,7 @@
   (deftest test-make-returns-the-created-room
     (is (= the-den @(make-the-den)))
     (is (= the-hall @(make-the-hall))))
-  
+
   (deftest test-remove-room-returns-the-removed-room
     (make-the-den)
     (make-the-hall)
@@ -44,12 +44,12 @@
     (is (empty? @world/rooms))
     (is (nil? (find-room 1)))
     (is (nil? (find-room 2)))
-    
+
     (make-the-den)
     (is (= 1 (count @world/rooms)))
     (is (= the-den @(find-room 1)))
     (is (nil? (find-room 2)))
-    
+
     (make-the-hall)
     (is (= 2 (count @world/rooms)))
     (is (= the-den @(find-room 1)))
@@ -62,7 +62,7 @@
     (is (= 2 (count @world/rooms)))
     (is (= the-den @(find-room 1)))
     (is (= the-hall @(find-room 2)))
-    
+
     (remove-room 2)
     (is (= 1 (count @world/rooms)))
     (is (= the-den @(find-room 1)))
