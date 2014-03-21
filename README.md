@@ -1,5 +1,9 @@
 # cl-mud
 
+**Version**: 0.1
+
+**Last Updated**: 18 March, 2014
+
 This is a painfully simple MUD-like thingy.
 
 At the moment, it serves no purpose other than as a platform for my
@@ -9,11 +13,23 @@ learning of Clojure.
 
 Leiningen and a Java VM
 
+## TODO
+
+What's next?
+
+- Networking
+- Multi-user support
+- Items
+- "dig" command for creating rooms
+- "link" command for creating exits
+- "recycle" command for recycling items, rooms, and exits
+- Lots, lots more!
+
 ## License
 
-The MIT License (MIT)
+### The MIT License (MIT)
 
-Copyright © 2014 Seth J. Morabito
+Copyright &copy; 2014 Seth J. Morabito
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

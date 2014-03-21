@@ -29,7 +29,7 @@
           (if (= 1 (count split-line))
             (list trigger)
             (list trigger (second split-line))))))))
-  
+
 (defn look [room]
   (notify (:name room))
   (notify)
