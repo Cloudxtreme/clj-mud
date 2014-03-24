@@ -6,5 +6,6 @@
   :dependencies [[org.clojure/clojure "1.5.1"]]
   :main ^:skip-aot cl-mud.core
   :target-path "target/%s"
+  :test-paths ["test" "test-resources"]
   :plugins [[quickie "0.2.5"]]
   :profiles {:uberjar {:aot :all}})

@@ -1,21 +1,16 @@
 (ns cl-mud.rooms-test
   (:require [clojure.test :refer :all]
-            [cl-mud.world :as world :refer :all]
-            [cl-mud.rooms :refer :all]))
+            [cl-mud.world :refer :all]
+            [cl-mud.rooms :refer :all]
+            [cl-mud.test-helper :as test-helper]))
 
-(defn reset-global-state [f]
-  (compare-and-set! world/next-id @world/next-id 0)
-  (compare-and-set! world/rooms @world/rooms #{})
-  (compare-and-set! world/current-room @world/current-room nil)
-  (compare-and-set! world/exits @world/exits #{})
-  (f))
 
 (def the-den {:id 1 :name "The Den" :desc "The Den is nice"})
 (def the-hall {:id 2 :name "The Hall" :desc "The Hallway is long"})
 
-(defn make-the-den [] (make "The Den" "The Den is nice"))
-(defn make-the-hall [] (make "The Hall" "The Hallway is long"))
-(defn make-garden [] (make "Garden" "A very lovely garden"))
+(defn make-the-den [] (make-room "The Den" "The Den is nice"))
+(defn make-the-hall [] (make-room "The Hall" "The Hallway is long"))
+(defn make-garden [] (make-room "Garden" "A very lovely garden"))
 (defn make-world []
   (make-the-den)
   (make-the-hall)
@@ -25,7 +20,10 @@
   (make-exit 2 3 "up")
   (make-exit 3 2 "down"))
 
-(use-fixtures :each reset-global-state)
+(use-fixtures :each
+  (fn [f]
+    (test-helper/reset-global-state)
+    (f)))
 
 (testing "Making and Removing Rooms"
   (deftest test-make-returns-the-created-room
@@ -41,17 +39,17 @@
 
 (testing "The Rooms Collection"
   (deftest test-make-adds-to-rooms-collection
-    (is (empty? @world/rooms))
+    (is (empty? @rooms))
     (is (nil? (find-room 1)))
     (is (nil? (find-room 2)))
 
     (make-the-den)
-    (is (= 1 (count @world/rooms)))
+    (is (= 1 (count @rooms)))
     (is (= the-den @(find-room 1)))
     (is (nil? (find-room 2)))
 
     (make-the-hall)
-    (is (= 2 (count @world/rooms)))
+    (is (= 2 (count @rooms)))
     (is (= the-den @(find-room 1)))
     (is (= the-hall @(find-room 2))))
 
@@ -59,17 +57,17 @@
     (make-the-den)
     (make-the-hall)
 
-    (is (= 2 (count @world/rooms)))
+    (is (= 2 (count @rooms)))
     (is (= the-den @(find-room 1)))
     (is (= the-hall @(find-room 2)))
 
     (remove-room 2)
-    (is (= 1 (count @world/rooms)))
+    (is (= 1 (count @rooms)))
     (is (= the-den @(find-room 1)))
     (is (nil? (find-room 2)))
 
     (remove-room 1)
-    (is (empty? @world/rooms))
+    (is (empty? @rooms))
     (is (nil? (find-room 1)))
     (is (nil? (find-room 2)))))
 
@@ -92,11 +90,11 @@
   (deftest make-exit-adds-to-exits-collection
     (make-the-den)
     (make-the-hall)
-    (is (= 0 (count @world/exits)))
+    (is (= 0 (count @exits)))
     (make-exit 1 2 "east")
-    (is (= 1 (count @world/exits)))
+    (is (= 1 (count @exits)))
     (make-exit 2 1 "west")
-    (is (= 2 (count @world/exits))))
+    (is (= 2 (count @exits))))
 
   (deftest test-get-exits-should-return-all-exits-for-a-room
     (make-world)

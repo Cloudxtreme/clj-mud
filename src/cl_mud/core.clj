@@ -1,10 +1,27 @@
 (ns cl-mud.core
-  (:require [cl-mud.world :as world]
-            [cl-mud.rooms :as rooms]
-            [clojure.string :as string])
+  (:require [clojure.java.io :as io]
+            [clojure.edn :as edn]
+            [cl-mud.world :refer [current-room exits inc-id rooms]]
+            [cl-mud.rooms :refer :all]
+            [clojure.string :refer [join split trim]])
   (:gen-class))
 
 (def command-handlers (atom {}))
+
+;; Default configuration
+(def config (atom {:mud-name "ClojureMud"
+                   :start-room-id 1
+                   :port 8888
+                   :bind-address "0.0.0.0"}))
+
+(defn load-config
+  [conf-file]
+  (try
+    (with-open [rdr (-> (io/resource conf-file)
+                        io/reader
+                        java.io.PushbackReader.)]
+      (compare-and-set! config @config (merge @config (edn/read rdr))))
+    (catch Exception e (str "Unable to load configuration file: " (.getMessage e)))))
 
 (defn notify
   [& rest]
@@ -12,7 +29,7 @@
 
 (defn normalize-input
   [line]
-  (let [trimmed-line (string/trim line)]
+  (let [trimmed-line (trim line)]
     (if (= \" (first trimmed-line))
       (str "say " (subs trimmed-line 1))
       (if (= \: (first trimmed-line))
@@ -22,7 +39,7 @@
 
 (defn parse-command
   [line]
-  (let [split-line (string/split (normalize-input line) #"\s" 2)]
+  (let [split-line (split (normalize-input line) #"\s" 2)]
     (if (not (empty? split-line))
       (let [trigger (keyword (first split-line))]
         (if (contains? (set (keys @command-handlers)) trigger)
@@ -35,7 +52,7 @@
   (notify)
   (notify (:desc room))
   (notify)
-  (notify "    Exits:" (string/join ", " (rooms/get-exit-names (:id room)))))
+  (notify "    Exits:" (join ", " (get-exit-names (:id room)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands are stored as a map of triggers to command handlers.
@@ -62,19 +79,19 @@
 
 (defn look-handler
   [args]
-  (if (not (nil? world/current-room))
-    (look @@world/current-room)
+  (if (not (nil? current-room))
+    (look @@current-room)
     (notify "You don't see that here")))
 
 (defn walk-handler
   [direction]
-  (let [exit (rooms/find-exit-by-name (:id @@world/current-room) direction)]
+  (let [exit (find-exit-by-name (:id @@current-room) direction)]
     (if (nil? direction)
       (notify "Where?")
       (if (not (nil? exit))
         (do
-          (rooms/move-to (:to exit))
-          (look @@world/current-room))
+          (move-to (:to exit))
+          (look @@current-room))
         (notify "There's no exit in that direction!")))))
 
 (defn setup-world
@@ -86,19 +103,19 @@
   (register-command :say say-handler)
   (register-command :pose pose-handler)
 
-  (rooms/make "The Center of the Universe" "The Room at the Center of it All")
-  (rooms/make "Hallway" "A long hallway.")
-  (rooms/make "Foyer" "A Foyer.")
-  (rooms/make "Bedroom" "It's a bedroom.")
+  (make-room "The Center of the Universe" "The Room at the Center of it All")
+  (make-room "Hallway" "A long hallway.")
+  (make-room "Foyer" "A Foyer.")
+  (make-room "Bedroom" "It's a bedroom.")
 
-  (rooms/make-exit 1 2 "east")  ; Den east to Hallway
-  (rooms/make-exit 2 1 "west")  ; Hallway west to Den
-  (rooms/make-exit 2 3 "east")  ; Hallway east to Garden
-  (rooms/make-exit 3 2 "west")  ; Garden west to Hallway
-  (rooms/make-exit 3 4 "north") ; Garden north to Bathroom
-  (rooms/make-exit 4 3 "south") ; Bathroom south to Garden
+  (make-exit 1 2 "east")  ; Den east to Hallway
+  (make-exit 2 1 "west")  ; Hallway west to Den
+  (make-exit 2 3 "east")  ; Hallway east to Garden
+  (make-exit 3 2 "west")  ; Garden west to Hallway
+  (make-exit 3 4 "north") ; Garden north to Bathroom
+  (make-exit 4 3 "south") ; Bathroom south to Garden
 
-  (rooms/move-to 1))
+  (move-to 1))
 
 (defn- get-args [command]
   (if (not (nil? command))
@@ -123,7 +140,7 @@
   (flush)
   (let [input (read-line)]
     (if (not (nil? input))
-      (let [trimmed (string/trim input)]
+      (let [trimmed (trim input)]
         (when (not= :quit (keyword trimmed))
           (dispatch-command trimmed)
           (recur))))))
@@ -132,10 +149,10 @@
   [& args]
   (notify "Setting up the world...")
   (setup-world)
-  (let [numrooms (count @world/rooms)]
+  (let [numrooms (count @rooms)]
     (notify "The world now has" numrooms
              (if (> numrooms 1) "rooms" "room")))
-  (notify "You are in:" (:name @@world/current-room))
+  (notify "You are in:" (:name @@current-room))
   (notify "Running MUD")
   (main-loop)
   (notify "\n\nGoodbye!"))

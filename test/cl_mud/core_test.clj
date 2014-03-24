@@ -1,6 +1,7 @@
 (ns cl-mud.core-test
   (:require [clojure.test :refer :all]
-            [cl-mud.core :refer :all]))
+            [cl-mud.core :refer :all]
+            [cl-mud.test-helper :as test-helper]))
 
 (def last-mock-arg (atom nil))
 
@@ -9,12 +10,38 @@
   [args]
   (compare-and-set! last-mock-arg @last-mock-arg (first args)))
 
-(defn reset-command-handlers
-  [f]
-  (compare-and-set! command-handlers @command-handlers {})
-  (f))
+(use-fixtures :each
+  (fn [f]
+    (test-helper/reset-global-state)
+    (f)))
 
-(use-fixtures :each reset-command-handlers)
+(testing "Configuration File Loading"
+  (deftest default-config-sanity-check
+    (is (= "ClojureMud" (:mud-name @config)))
+    (is (= 1 (:start-room-id @config)))
+    (is (= 8888 (:port @config)))
+    (is (= "0.0.0.0" (:bind-address @config))))
+
+  (deftest loading-non-existent-file-leaves-config-unchanged
+    (load-config "no_such_file.clj")
+    (is (= "ClojureMud" (:mud-name @config)))
+    (is (= 1 (:start-room-id @config)))
+    (is (= 8888 (:port @config)))
+    (is (= "0.0.0.0" (:bind-address @config))))
+
+  (deftest loaded-config-overrides-default-config
+    (load-config "test_config_1.clj")
+    (is (= "TestConfig1MudName" (:mud-name @config)))
+    (is (= 2929 (:start-room-id @config)))
+    (is (= 8765 (:port @config)))
+    (is (= "127.0.0.1" (:bind-address @config))))
+
+  (deftest loaded-config-merges-with-default-config
+    (load-config "test_config_2.clj")
+    (is (= "ClojureMud" (:mud-name @config)))
+    (is (= 1181 (:start-room-id @config)))
+    (is (= 8999 (:port @config)))
+    (is (= "0.0.0.0" (:bind-address @config)))))
 
 (testing "Parsing Commands"
   (deftest test-normalize-input-expands-single-quote-to-say
