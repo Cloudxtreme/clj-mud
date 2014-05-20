@@ -103,17 +103,21 @@
   (register-command :say say-handler)
   (register-command :pose pose-handler)
 
-  (make-room "The Center of the Universe" "The Room at the Center of it All")
-  (make-room "Hallway" "A long hallway.")
-  (make-room "Foyer" "A Foyer.")
-  (make-room "Bedroom" "It's a bedroom.")
+  (def wizard-den
+    (make-room "The Center of the Universe" "The Room at the Center of it All"))
+  (def hallway
+    (make-room "Hallway" "A long hallway."))
+  (def foyer
+    (make-room "Foyer" "A Foyer."))
+  (def bedroom
+    (make-room "Bedroom" "It's a bedroom."))
 
-  (make-exit 1 2 "east")  ; Den east to Hallway
-  (make-exit 2 1 "west")  ; Hallway west to Den
-  (make-exit 2 3 "east")  ; Hallway east to Garden
-  (make-exit 3 2 "west")  ; Garden west to Hallway
-  (make-exit 3 4 "north") ; Garden north to Bathroom
-  (make-exit 4 3 "south") ; Bathroom south to Garden
+  (make-exit wizard-den hallway "east")
+  (make-exit hallway wizard-den "west")
+  (make-exit hallway foyer "east")
+  (make-exit foyer hallway "west")
+  (make-exit foyer bedroom "north")
+  (make-exit bedroom foyer "south")
 
   (move-to 1))
 

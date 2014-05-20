@@ -15,13 +15,11 @@
   (some #(if (= id (:id (deref %))) %) @rooms))
 
 (defn remove-room
-  "Remove a room from the rooms"
-  [room-id]
-  (let [room (find-room room-id)]
-    (if (not (nil? room))
-      (do
-        (swap! rooms disj room)
-        room))))
+  "Remove a room from the world"
+  [room-atom]
+  (do
+    (swap! rooms disj room-atom)
+    room-atom))
 
 (defn move-to
   "Move the player to a given room"
@@ -33,8 +31,9 @@
         @current-room))))
 
 (defn make-exit
+  "Makes an exit from the source room to the destination room"
   [from to name]
-  (let [exit {:from from, :to to, :name name}]
+  (let [exit {:from (:id @from), :to (:id @to), :name name}]
     (do
       (swap! exits conj exit)
       exit)))
@@ -57,6 +56,7 @@
                   (= name (:name %))) %) @exits))
 
 (defn- change-attrib
+  "Changes an attribute on a room atomically"
   [room attrib val]
   (do
     (swap! room assoc attrib val)
