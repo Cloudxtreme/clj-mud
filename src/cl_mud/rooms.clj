@@ -10,7 +10,7 @@
       room)))
 
 (defn find-room
-  "Find a room in the rooms by id, or nil if no such room."
+  "Find a room in the rooms by id, or nil if no such room exists."
   [id]
   (some #(if (= id (:id (deref %))) %) @rooms))
 
@@ -49,8 +49,8 @@
 (defn find-exit-by-name
   "Returns the exit from the specified room with the given name, or
   nil if no exit could be found"
-  [room-id name]
-  (some #(if (and (= room-id (:from %))
+  [room name]
+  (some #(if (and (= (:id @room) (:from %))
                   (= name (:name %))) %) @exits))
 
 (defn- change-attrib

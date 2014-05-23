@@ -48,11 +48,11 @@
             (list trigger (second split-line))))))))
 
 (defn look [room]
-  (notify (:name room))
+  (notify (:name @room))
   (notify)
-  (notify (:desc room))
+  (notify (:desc @room))
   (notify)
-  (notify "    Exits:" (join ", " (get-exit-names (:id room)))))
+  (notify (str "    Exits: " (join ", " (get-exit-names room)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands are stored as a map of triggers to command handlers.
@@ -79,19 +79,19 @@
 
 (defn look-handler
   [args]
-  (if (not (nil? current-room))
-    (look @@current-room)
-    (notify "You don't see that here")))
+  (if (nil? @current-room)
+    (notify "You don't see that here")
+    (look @current-room)))
 
 (defn walk-handler
   [direction]
-  (let [exit (find-exit-by-name (:id @@current-room) direction)]
+  (let [exit (find-exit-by-name @current-room direction)]
     (if (nil? direction)
       (notify "Where?")
       (if (not (nil? exit))
         (do
-          (move-to (:to exit))
-          (look @@current-room))
+          (move-to (find-room (:to exit)))
+          (look @current-room))
         (notify "There's no exit in that direction!")))))
 
 (defn setup-world
@@ -119,7 +119,7 @@
   (make-exit foyer bedroom "north")
   (make-exit bedroom foyer "south")
 
-  (move-to 1))
+  (move-to wizard-den))
 
 (defn- get-args [command]
   (if (not (nil? command))

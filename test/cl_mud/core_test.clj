@@ -1,18 +1,26 @@
 (ns cl-mud.core-test
   (:require [clojure.test :refer :all]
             [cl-mud.core :refer :all]
+            [cl-mud.rooms :refer :all]
             [cl-mud.test-helper :as test-helper]))
 
 (def last-mock-arg (atom nil))
+(def notifications (atom []))
 
 ;; Mock handler
 (defn mock-handler
   [args]
   (compare-and-set! last-mock-arg @last-mock-arg (first args)))
 
+(defn mock-println
+  "Mock implementation of 'println' that appends to notifications list"
+  [& arg]
+  (if arg (swap! notifications conj (first arg))))
+
 (use-fixtures :each
   (fn [f]
     (test-helper/reset-global-state)
+    (compare-and-set! notifications @notifications [])
     (f)))
 
 (testing "Configuration File Loading"
@@ -77,3 +85,21 @@
     (is (= {} @command-handlers))
     (register-command :say mock-handler)
     (is (= {:say mock-handler} @command-handlers))))
+
+
+(testing "Handlers"
+  (deftest look-handler-non-existent-rooms
+    (with-redefs-fn {#'println mock-println}
+      #(look-handler nil))
+    (is (= ["You don't see that here"] @notifications)))
+
+  (deftest look-handler-prints-current-room
+    (let [den (make-room "The Den" "This is a nice den")
+          hall (make-room "The Hall" "A Long Hallway")]
+      (make-exit den hall "east")
+      (make-exit hall den "west")
+      (move-to den)
+      (with-redefs-fn {#'println mock-println} #(look-handler nil))
+      (is (= ["The Den"
+              "This is a nice den"
+              "    Exits: east"] @notifications)))))

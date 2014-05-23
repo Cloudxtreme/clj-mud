@@ -118,14 +118,17 @@
 
   (deftest test-find-exit-by-name-should-return-exit
     (make-world)
-    (is (= {:from 1, :to 2, :name "east"} (find-exit-by-name 1 "east")))
-    (is (nil? (find-exit-by-name 1 "west")))
-    (is (= {:from 2, :to 1, :name "west"} (find-exit-by-name 2 "west")))
-    (is (= {:from 2, :to 3, :name "up"} (find-exit-by-name 2 "up")))
-    (is (nil? (find-exit-by-name 2 "down")))
-    (is (nil? (find-exit-by-name 2 "east")))
-    (is (= {:from 3, :to 2, :name "down"} (find-exit-by-name 3 "down")))
-    (is (nil? (find-exit-by-name 3 "west")))))
+    (let [den (find-room 1)
+          hall (find-room 2)
+          garden (find-room 3)]
+      (is (= {:from 1, :to 2, :name "east"} (find-exit-by-name den "east")))
+      (is (nil? (find-exit-by-name den "west")))
+      (is (= {:from 2, :to 1, :name "west"} (find-exit-by-name hall "west")))
+      (is (= {:from 2, :to 3, :name "up"} (find-exit-by-name hall "up")))
+      (is (nil? (find-exit-by-name hall "down")))
+      (is (nil? (find-exit-by-name hall "east")))
+      (is (= {:from 3, :to 2, :name "down"} (find-exit-by-name garden "down")))
+      (is (nil? (find-exit-by-name garden "west"))))))
 
 (testing "Navigating the World"
   (deftest test-move-sets-current-room
