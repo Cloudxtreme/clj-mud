@@ -4,7 +4,6 @@
             [cl-mud.rooms :refer :all]
             [cl-mud.test-helper :as test-helper]))
 
-
 (def eg-den {:id 1 :name "The Den" :desc "The Den is nice"})
 (def eg-hall {:id 2 :name "The Hall" :desc "The Hallway is long"})
 
@@ -86,7 +85,6 @@
     (make-hall)
     (is (nil? (find-room 999)))))
 
-
 (testing "Linking Rooms"
   (deftest make-exit-adds-to-exits-collection
     (let [den (make-den)
@@ -99,17 +97,24 @@
 
   (deftest test-get-exits-should-return-all-exits-for-a-room
     (make-world)
+    (let [den (find-room 1)
+          hall (find-room 2)
+          garden (find-room 3)]
 
-    (is (= '({:from 1, :to 2, :name "east"}) (get-exits 1)))
-    (is (= '({:from 2, :to 1, :name "west"}
-             {:from 2, :to 3, :name "up"}) (get-exits 2)))
-    (is (= '({:from 3, :to 2, :name "down"}) (get-exits 3))))
+      (is (= '({:from 1, :to 2, :name "east"}) (get-exits den)))
+      (is (= '({:from 2, :to 1, :name "west"}
+               {:from 2, :to 3, :name "up"}) (get-exits hall)))
+      (is (= '({:from 3, :to 2, :name "down"}) (get-exits garden)))))
 
   (deftest test-get-exit-names-should-return-correct-names
     (make-world)
-    (is (= '("east") (get-exit-names 1)))
-    (is (= '("west" "up") (get-exit-names 2)))
-    (is (= '("down") (get-exit-names 3))))
+    (let [den (find-room 1)
+          hall (find-room 2)
+          garden (find-room 3)]
+
+      (is (= '("east") (get-exit-names den)))
+      (is (= '("west" "up") (get-exit-names hall)))
+      (is (= '("down") (get-exit-names garden)))))
 
   (deftest test-find-exit-by-name-should-return-exit
     (make-world)
@@ -125,31 +130,18 @@
 (testing "Navigating the World"
   (deftest test-move-sets-current-room
     (is (nil? @current-room))
-    (make-den)
-    (make-hall)
-    (move-to 1)
-    (is (= eg-den @@current-room))
-    (move-to 2)
-    (is (= eg-hall @@current-room)))
+    (let [den (make-den)
+          hall (make-hall)]
+      (move-to den)
+      (is (= eg-den @@current-room))
+      (move-to hall)
+      (is (= eg-hall @@current-room))))
 
   (deftest test-move-returns-new-room
-    (make-den)
-    (make-hall)
-    (is (= eg-den @(move-to 1)))
-    (is (= eg-hall @(move-to 2))))
-
-  (deftest test-move-nonexistent-room-leaves-current-room-unchanged
-    (make-den)
-    (make-hall)
-    (move-to 1)
-    (is (= eg-den @@current-room))
-    (move-to 999)
-    (is (= eg-den @@current-room)))
-
-  (deftest test-move-nonexistent-room-returns-nil
-    (make-den)
-    (make-hall)
-    (is (nil? (move-to 9999)))))
+    (let [den (make-den)
+          hall (make-hall)]
+      (is (= eg-den @(move-to den)))
+      (is (= eg-hall @(move-to hall))))))
 
 (testing "Room Mutability"
   (deftest rename-room-changes-room-name-at-atom-level

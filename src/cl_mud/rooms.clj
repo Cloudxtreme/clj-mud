@@ -23,12 +23,10 @@
 
 (defn move-to
   "Move the player to a given room"
-  [room-id]
-  (let [room (find-room room-id)]
-    (if (not (nil? room))
-      (do
-        (compare-and-set! current-room @current-room room)
-        @current-room))))
+  [room]
+  (do
+    (compare-and-set! current-room @current-room room)
+    @current-room))
 
 (defn make-exit
   "Makes an exit from the source room to the destination room"
@@ -40,13 +38,13 @@
 
 (defn get-exits
   "Returns all outgoing exits for the specified room."
-  [room-id]
-  (filter #(if (= room-id (:from %)) %) @exits))
+  [room]
+  (filter #(if (= (:id @room) (:from %)) %) @exits))
 
 (defn get-exit-names
   "Returns a list of all outgoing exit names for the specified room."
-  [room-id]
-  (map :name (get-exits room-id)))
+  [room]
+  (map :name (get-exits room)))
 
 (defn find-exit-by-name
   "Returns the exit from the specified room with the given name, or
