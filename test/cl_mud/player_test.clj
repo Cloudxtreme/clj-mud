@@ -1,10 +1,10 @@
-(ns cl-mud.player-test
+(ns clj-mud.player-test
   (:require [clojure.test :refer :all]
-            [cl-mud.rooms :refer :all]
-            [cl-mud.player :refer :all]
-            [cl-mud.world :refer :all]
-            [cl-mud.core :as core]
-            [cl-mud.test-helper :as test-helper]))
+            [clj-mud.rooms :refer :all]
+            [clj-mud.player :refer :all]
+            [clj-mud.world :refer :all]
+            [clj-mud.core :as core]
+            [clj-mud.test-helper :as test-helper]))
 
 (defn make-hall [] (make-room "The Hall" "The hall is long"))
 (defn make-lounge [] (make-room "The Lounge" "The lounge is pretty OK"))

@@ -1,5 +1,5 @@
-(ns cl-mud.rooms
-  (:require [cl-mud.world :refer :all]))
+(ns clj-mud.rooms
+  (:require [clj-mud.world :refer :all]))
 
 (defn make-room
   "Make a Room and put it in the world"

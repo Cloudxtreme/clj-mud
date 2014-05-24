@@ -1,8 +1,8 @@
-(ns cl-mud.core
+(ns clj-mud.core
   (:require [clojure.java.io :as io]
             [clojure.edn :as edn]
-            [cl-mud.world :refer [current-room exits inc-id rooms]]
-            [cl-mud.rooms :refer :all]
+            [clj-mud.world :refer [current-room exits inc-id rooms]]
+            [clj-mud.rooms :refer :all]
             [clojure.string :refer [join split trim]])
   (:gen-class))
 
@@ -63,7 +63,7 @@
   (swap! command-handlers assoc command handler))
 
 (defn help-handler
-  [args]
+  [& args]
   (notify "Oh dear. Don't be silly. Help isn't implemented yet.")
   (notify "(but seriously, type 'quit' to quit)"))
 
@@ -78,7 +78,7 @@
   (notify (str "*** [" args "]")))
 
 (defn look-handler
-  [args]
+  [& args]
   (if (nil? @current-room)
     (notify "You don't see that here")
     (look @current-room)))
@@ -86,13 +86,11 @@
 (defn walk-handler
   [direction]
   (let [exit (find-exit-by-name @current-room direction)]
-    (if (nil? direction)
-      (notify "Where?")
-      (if (not (nil? exit))
-        (do
-          (move-to (find-room (:to exit)))
-          (look @current-room))
-        (notify "There's no exit in that direction!")))))
+    (if (nil? exit)
+      (notify "There's no exit in that direction!")
+      (do
+        (move-to (find-room (:to exit)))
+        (look @current-room)))))
 
 (defn setup-world
   "Builds a very simple starter world. "

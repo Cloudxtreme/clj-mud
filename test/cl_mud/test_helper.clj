@@ -1,11 +1,11 @@
-(ns cl-mud.test-helper
+(ns clj-mud.test-helper
   (:require [clojure.test :refer :all]
-            [cl-mud.core :refer :all]
-            [cl-mud.world :refer :all]
-            [cl-mud.rooms :refer :all]))
+            [clj-mud.core :refer :all]
+            [clj-mud.world :refer :all]
+            [clj-mud.rooms :refer :all]))
 
 ;; Steal the default config to re-set it
-(def default-config @cl-mud.core/config)
+(def default-config @clj-mud.core/config)
 
 (defn reset-global-state []
   (compare-and-set! next-id @next-id 0)

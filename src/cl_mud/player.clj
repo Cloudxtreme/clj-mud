@@ -1,7 +1,7 @@
-(ns cl-mud.player
-  (:require [cl-mud.world :refer :all]
-            [cl-mud.rooms :refer [find-room]]
-            [cl-mud.core :refer [config]]))
+(ns clj-mud.player
+  (:require [clj-mud.world :refer :all]
+            [clj-mud.rooms :refer [find-room]]
+            [clj-mud.core :refer [config]]))
 
 (defn make-player
   ([name]

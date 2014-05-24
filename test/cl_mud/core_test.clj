@@ -1,8 +1,9 @@
-(ns cl-mud.core-test
+(ns clj-mud.core-test
   (:require [clojure.test :refer :all]
-            [cl-mud.core :refer :all]
-            [cl-mud.rooms :refer :all]
-            [cl-mud.test-helper :as test-helper]))
+            [clj-mud.core :refer :all]
+            [clj-mud.rooms :refer :all]
+            [clj-mud.world :refer :all]
+            [clj-mud.test-helper :as test-helper]))
 
 (def last-mock-arg (atom nil))
 (def notifications (atom []))
@@ -19,6 +20,11 @@
          (if arg
            (first arg)
            "")))
+
+(defmacro with-mock-println
+  "Convenience macro to help capture println output."
+  [& args]
+  `(with-redefs-fn {#'println mock-println} (fn [] ~@args)))
 
 (use-fixtures :each
   (fn [f]
@@ -75,7 +81,8 @@
     (register-command :look mock-handler)
     (register-command :go mock-handler)
     (is (= '(:look "north") (parse-command "look north")))
-    (is (= '(:say "This is super fun, too!") (parse-command "say This is super fun, too!"))))
+    (is (= '(:say "This is super fun, too!") (parse-command "say This is super fun, too!")))
+    (is (= '(:look) (parse-command "look"))))
 
   (deftest test-parse-command-should-return-nil-if-no-trigger-found
     (register-command :say mock-handler)
@@ -89,11 +96,30 @@
     (register-command :say mock-handler)
     (is (= {:say mock-handler} @command-handlers))))
 
+(testing "Bootstrapping the World"
+  (deftest setup-world-builds-a-world
+    (is (= 0 (count @rooms)))
+    (is (= 0 (count @exits)))
+    (setup-world)
+    (is (>= (count @rooms) 1))
+    (is (>= (count @exits) 1))))
+
+(testing "Dispatching commands"
+  (deftest dispatch-command-test
+    (with-mock-println (dispatch-command "say Hello, world!"))
+    (is (= "You say, \"Hello!\"") (last @notifications))))
 
 (testing "Handlers"
+  (deftest say-handler-test
+    (with-mock-println (say-handler "Hello!"))
+    (is (= "You say, \"Hello!\"") (last @notifications)))
+
+  (deftest pose-handler-test
+    (with-mock-println (pose-handler "flaps around the room."))
+    (is (re-seq #"flaps around the room." (last @notifications))))
+
   (deftest look-handler-non-existent-rooms
-    (with-redefs-fn {#'println mock-println}
-      #(look-handler nil))
+    (with-mock-println (look-handler nil))
     (is (= ["You don't see that here"] @notifications)))
 
   (deftest look-handler-prints-current-room
@@ -102,7 +128,7 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (with-redefs-fn {#'println mock-println} #(look-handler nil))
+      (with-mock-println (look-handler nil))
       (is (= ["The Den"
               ""
               "This is a nice den"
@@ -115,9 +141,20 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (is (= den @cl-mud.world/current-room))
-      (with-redefs-fn {#'println mock-println} #(walk-handler "east"))
-      (is (= hall @cl-mud.world/current-room))))
+      (is (= den @current-room))
+      (with-mock-println (walk-handler "east"))
+      (is (= hall @current-room))))
+
+  (deftest walk-handler-wont-move-to-nonexistent-exit
+    (let [den (make-room "The Den" "This is a nice den")
+          hall (make-room "The Hall" "A Long Hallway")]
+      (make-exit den hall "east")
+      (make-exit hall den "west")
+      (move-to den)
+      (is (= den @current-room))
+      (with-mock-println (walk-handler "north"))
+      (is (= den @current-room))
+      (is (= "There's no exit in that direction!" (last @notifications)))))
 
   (deftest walk-handler-looks-at-new-room
     (let [den (make-room "The Den" "This is a nice den")
@@ -125,9 +162,14 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (with-redefs-fn {#'println mock-println} #(walk-handler "east"))
+      (with-mock-println (walk-handler "east"))
       (is (= ["The Hall"
               ""
               "A Long Hallway"
               ""
-              "    Exits: west"] @notifications)))))
+              "    Exits: west"] @notifications))))
+
+  (deftest help-handler-returns-at-least-one-line
+    "We don't really care what it returns, just that it returns something."
+    (with-mock-println (help-handler))
+    (is (<= 1 (count @notifications)))))

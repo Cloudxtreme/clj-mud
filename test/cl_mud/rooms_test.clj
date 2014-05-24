@@ -1,8 +1,8 @@
-(ns cl-mud.rooms-test
+(ns clj-mud.rooms-test
   (:require [clojure.test :refer :all]
-            [cl-mud.world :refer :all]
-            [cl-mud.rooms :refer :all]
-            [cl-mud.test-helper :as test-helper]))
+            [clj-mud.world :refer :all]
+            [clj-mud.rooms :refer :all]
+            [clj-mud.test-helper :as test-helper]))
 
 (def eg-den {:id 1 :name "The Den" :desc "The Den is nice"})
 (def eg-hall {:id 2 :name "The Hall" :desc "The Hallway is long"})

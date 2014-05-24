@@ -1,4 +1,4 @@
-(ns cl-mud.world)
+(ns clj-mud.world)
 
 (def next-id (atom 0))
 (def rooms (atom #{}))
@@ -15,19 +15,3 @@
   (do
     (swap! next-id inc)
     @next-id))
-
-(defn move-player
-  [from-id to-id]
-  nil)
-
-(defn move-item
-  [from-id to-id]
-  nil)
-
-(defn is-room
-  [id]
-  nil)
-
-(defn is-player
-  [id]
-  nil)
