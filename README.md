@@ -1,4 +1,4 @@
-# cl-mud
+# clj-mud
 
 **Version**: 0.1
 
