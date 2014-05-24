@@ -15,7 +15,10 @@
 (defn mock-println
   "Mock implementation of 'println' that appends to notifications list"
   [& arg]
-  (if arg (swap! notifications conj (first arg))))
+  (swap! notifications conj
+         (if arg
+           (first arg)
+           "")))
 
 (use-fixtures :each
   (fn [f]
@@ -101,5 +104,30 @@
       (move-to den)
       (with-redefs-fn {#'println mock-println} #(look-handler nil))
       (is (= ["The Den"
+              ""
               "This is a nice den"
-              "    Exits: east"] @notifications)))))
+              ""
+              "    Exits: east"] @notifications))))
+
+  (deftest walk-handler-moves-the-player
+    (let [den (make-room "The Den" "This is a nice den")
+          hall (make-room "The Hall" "A Long Hallway")]
+      (make-exit den hall "east")
+      (make-exit hall den "west")
+      (move-to den)
+      (is (= den @cl-mud.world/current-room))
+      (with-redefs-fn {#'println mock-println} #(walk-handler "east"))
+      (is (= hall @cl-mud.world/current-room))))
+
+  (deftest walk-handler-looks-at-new-room
+    (let [den (make-room "The Den" "This is a nice den")
+          hall (make-room "The Hall" "A Long Hallway")]
+      (make-exit den hall "east")
+      (make-exit hall den "west")
+      (move-to den)
+      (with-redefs-fn {#'println mock-println} #(walk-handler "east"))
+      (is (= ["The Hall"
+              ""
+              "A Long Hallway"
+              ""
+              "    Exits: west"] @notifications)))))
