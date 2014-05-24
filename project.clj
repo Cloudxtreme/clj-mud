@@ -7,5 +7,6 @@
   :main ^:skip-aot cl-mud.core
   :target-path "target/%s"
   :test-paths ["test" "test-resources"]
-  :plugins [[quickie "0.2.5"]]
+  :plugins [[quickie "0.2.5"]
+            [lein-cloverage "1.0.2"]]
   :profiles {:uberjar {:aot :all}})
