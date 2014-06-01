@@ -3,28 +3,30 @@
             [clj-mud.core :refer :all]
             [clj-mud.rooms :refer :all]
             [clj-mud.world :refer :all]
-            [clj-mud.test-helper :as test-helper]))
+            [clj-mud.test-helper :as test-helper]
+            [lamina.core :refer :all]
+            [aleph.tcp :refer :all]
+            [gloss.core :refer :all]))
 
 (def last-mock-arg (atom nil))
 (def notifications (atom []))
 
 ;; Mock handler
 (defn mock-handler
-  [args]
+  [ch args]
   (compare-and-set! last-mock-arg @last-mock-arg (first args)))
 
-(defn mock-println
-  "Mock implementation of 'println' that appends to notifications list"
-  [& arg]
-  (swap! notifications conj
-         (if arg
-           (first arg)
-           "")))
+(def mock-channel nil)
 
-(defmacro with-mock-println
+(defn mock-enqueue
+  "Mock implementation of 'enqueue' that appends to notifications list"
+  [ch arg]
+  (swap! notifications conj arg))
+
+(defmacro with-mock-enqueue
   "Convenience macro to help capture println output."
   [& args]
-  `(with-redefs-fn {#'println mock-println} (fn [] ~@args)))
+  `(with-redefs-fn {#'enqueue mock-enqueue} (fn [] ~@args)))
 
 (use-fixtures :each
   (fn [f]
@@ -106,20 +108,20 @@
 
 (testing "Dispatching commands"
   (deftest dispatch-command-test
-    (with-mock-println (dispatch-command "say Hello, world!"))
+    (with-mock-enqueue (dispatch-command mock-channel "say Hello, world!"))
     (is (= "You say, \"Hello!\"") (last @notifications))))
 
 (testing "Handlers"
   (deftest say-handler-test
-    (with-mock-println (say-handler "Hello!"))
+    (with-mock-enqueue (say-handler mock-channel "Hello!"))
     (is (= "You say, \"Hello!\"") (last @notifications)))
 
   (deftest pose-handler-test
-    (with-mock-println (pose-handler "flaps around the room."))
+    (with-mock-enqueue (pose-handler mock-channel "flaps around the room."))
     (is (re-seq #"flaps around the room." (last @notifications))))
 
   (deftest look-handler-non-existent-rooms
-    (with-mock-println (look-handler nil))
+    (with-mock-enqueue (look-handler mock-channel))
     (is (= ["You don't see that here"] @notifications)))
 
   (deftest look-handler-prints-current-room
@@ -128,11 +130,11 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (with-mock-println (look-handler nil))
+      (with-mock-enqueue (look-handler mock-channel))
       (is (= ["The Den"
-              ""
+              "\n"
               "This is a nice den"
-              ""
+              "\n"
               "    Exits: east"] @notifications))))
 
   (deftest walk-handler-moves-the-player
@@ -142,7 +144,7 @@
       (make-exit hall den "west")
       (move-to den)
       (is (= den @current-room))
-      (with-mock-println (walk-handler "east"))
+      (with-mock-enqueue (walk-handler mock-channel "east"))
       (is (= hall @current-room))))
 
   (deftest walk-handler-wont-move-to-nonexistent-exit
@@ -152,7 +154,7 @@
       (make-exit hall den "west")
       (move-to den)
       (is (= den @current-room))
-      (with-mock-println (walk-handler "north"))
+      (with-mock-enqueue (walk-handler mock-channel "north"))
       (is (= den @current-room))
       (is (= "There's no exit in that direction!" (last @notifications)))))
 
@@ -162,14 +164,25 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (with-mock-println (walk-handler "east"))
+      (with-mock-enqueue (walk-handler mock-channel "east"))
       (is (= ["The Hall"
-              ""
+              "\n"
               "A Long Hallway"
-              ""
+              "\n"
               "    Exits: west"] @notifications))))
 
   (deftest help-handler-returns-at-least-one-line
     "We don't really care what it returns, just that it returns something."
-    (with-mock-println (help-handler))
+    (with-mock-enqueue (help-handler mock-channel))
     (is (<= 1 (count @notifications)))))
+
+(testing "Connecting Channels"
+  (deftest channels-are-added-to-channel-set-on-connection
+    (channel-connected "Mock Channel" {:address "0:0:0:0:0:0:0:1%0"})
+    (is (= {"Mock Channel" {:address "0:0:0:0:0:0:0:1%0"}} @client-channels)))
+
+  (deftest channels-are-removed-from-channel-set-on-disconnect
+    (channel-connected "Mock Channel" {:address "0:0:0:0:0:0:0:1%0"})
+    (is (not (empty? @client-channels)))
+    (channel-disconnected "Mock Channel")
+    (is (empty? @client-channels))))

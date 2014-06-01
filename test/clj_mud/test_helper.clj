@@ -14,4 +14,5 @@
   (compare-and-set! exits @exits #{})
   (compare-and-set! players @players #{})
   (compare-and-set! command-handlers @command-handlers {})
+  (compare-and-set! client-channels @client-channels {})
   (compare-and-set! config @config default-config))

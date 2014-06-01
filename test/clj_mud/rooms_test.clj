@@ -160,13 +160,12 @@
       (is (= "The Bathroom" (:name @(find-room 1))))))
 
   (deftest describe-room-changes-room-description-at-atom-level
-    (make-den)
-    (let [my-room-ref (find-room 1)]
+    (let [den (make-den)]
       (is (= "The Den is nice" (:desc @(find-room 1))))
-      (is (= "The Den is nice" (:desc @my-room-ref)))
+      (is (= "The Den is nice" (:desc @den)))
       (describe-room (find-room 1) "The Den is really filthy right now!")
-      (is (= "The Den is really filthy right now!" (:desc @my-room-ref)))
+      (is (= "The Den is really filthy right now!" (:desc @den)))
       (is (= "The Den is really filthy right now!" (:desc @(find-room 1))))
-      (describe-room my-room-ref "Oh wow, it's so bright")
-      (is (= "Oh wow, it's so bright" (:desc @my-room-ref)))
+      (describe-room den "Oh wow, it's so bright")
+      (is (= "Oh wow, it's so bright" (:desc @den)))
       (is (= "Oh wow, it's so bright" (:desc @(find-room 1)))))))

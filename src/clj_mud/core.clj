@@ -1,9 +1,14 @@
 (ns clj-mud.core
   (:require [clojure.java.io :as io]
             [clojure.edn :as edn]
-            [clj-mud.world :refer [current-room exits inc-id rooms]]
+            [clj-mud.world :refer [current-room exits inc-id rooms client-channels]]
             [clj-mud.rooms :refer :all]
-            [clojure.string :refer [join split trim]])
+            [clojure.string :as string]
+            [clj-time.core :as t]
+            [clj-time.local :as l]
+            [lamina.core :refer :all]
+            [aleph.tcp :refer :all]
+            [gloss.core :refer :all])
   (:gen-class))
 
 (def command-handlers (atom {}))
@@ -13,6 +18,10 @@
                    :start-room-id 1
                    :port 8888
                    :bind-address "0.0.0.0"}))
+
+(defn log
+  [message]
+  (println (str "[" (l/local-now) "]: " message)))
 
 (defn load-config
   [conf-file]
@@ -24,12 +33,14 @@
     (catch Exception e (str "Unable to load configuration file: " (.getMessage e)))))
 
 (defn notify
-  [& rest]
-  (apply println rest))
+  [ch & message]
+  (if message
+    (enqueue ch (str (apply str message)))
+    (enqueue ch "\n")))
 
 (defn normalize-input
   [line]
-  (let [trimmed-line (trim line)]
+  (let [trimmed-line (string/trim line)]
     (if (= \" (first trimmed-line))
       (str "say " (subs trimmed-line 1))
       (if (= \: (first trimmed-line))
@@ -39,7 +50,7 @@
 
 (defn parse-command
   [line]
-  (let [split-line (split (normalize-input line) #"\s" 2)]
+  (let [split-line (string/split (normalize-input line) #"\s" 2)]
     (if (not (empty? split-line))
       (let [trigger (keyword (first split-line))]
         (if (contains? (set (keys @command-handlers)) trigger)
@@ -47,12 +58,12 @@
             (list trigger)
             (list trigger (second split-line))))))))
 
-(defn look [room]
-  (notify (:name @room))
-  (notify)
-  (notify (:desc @room))
-  (notify)
-  (notify (str "    Exits: " (join ", " (get-exit-names room)))))
+(defn look [ch room]
+  (notify ch (:name @room))
+  (notify ch "\n")
+  (notify ch (:desc @room))
+  (notify ch "\n")
+  (notify ch (str "    Exits: " (string/join ", " (get-exit-names room)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands are stored as a map of triggers to command handlers.
@@ -63,34 +74,34 @@
   (swap! command-handlers assoc command handler))
 
 (defn help-handler
-  [& args]
-  (notify "Oh dear. Don't be silly. Help isn't implemented yet.")
-  (notify "(but seriously, type 'quit' to quit)"))
+  [ch & args]
+  (notify ch "Oh dear. Don't be silly. Help isn't implemented yet.")
+  (notify ch "(but seriously, type 'quit' to quit)"))
 
 ;; To be improved when multi-user support is added
 (defn say-handler
-  [args]
-  (notify (str "You say, \"" args "\"")))
+  [ch args]
+  (notify ch (str "You say, \"" args "\"")))
 
 ;; To be improved when multi-user support is added
 (defn pose-handler
-  [args]
-  (notify (str "*** [" args "]")))
+  [ch args]
+  (notify ch (str "*** [" args "]")))
 
 (defn look-handler
-  [& args]
+  [ch & args]
   (if (nil? @current-room)
-    (notify "You don't see that here")
-    (look @current-room)))
+    (notify ch "You don't see that here")
+    (look ch @current-room)))
 
 (defn walk-handler
-  [direction]
+  [ch direction]
   (let [exit (find-exit-by-name @current-room direction)]
     (if (nil? exit)
-      (notify "There's no exit in that direction!")
+      (notify ch "There's no exit in that direction!")
       (do
         (move-to (find-room (:to exit)))
-        (look @current-room)))))
+        (look ch @current-room)))))
 
 (defn setup-world
   "Builds a very simple starter world. "
@@ -128,33 +139,55 @@
     ((first command) @command-handlers)))
 
 (defn dispatch-command
-  [input]
+  [ch input]
   (if (not (empty? input))
     (let [command (parse-command input)]
       (if (nil? command)
-        (notify "Huh? (Type \"help\" for help)")
-        ((get-handler command) (get-args command))))))
+        (notify ch "Huh? (Type \"help\" for help)")
+        ((get-handler command) ch (get-args command))))))
 
-(defn main-loop
-  "The main MUD Loop"
-  []
-  (print "mud> ")
-  (flush)
-  (let [input (read-line)]
-    (if (not (nil? input))
-      (let [trimmed (trim input)]
-        (when (not= :quit (keyword trimmed))
-          (dispatch-command trimmed)
-          (recur))))))
+(defn read-one-line
+  "The main MUD input handler"
+  [ch]
+  (receive-all
+   ch
+   (fn [input]
+     (if (not (nil? input))
+       (let [trimmed (string/trim input)]
+         (if (= :quit (keyword trimmed))
+           (close ch)
+           ;; Else, dispatch the command
+           (dispatch-command ch trimmed)))))))
+
+(defn channel-connected
+  ""
+  [ch client-info]
+  (swap! client-channels assoc ch client-info))
+
+(defn channel-disconnected
+  ""
+  [ch]
+  (swap! client-channels dissoc ch))
+
+(defn client-handler [ch client-info]
+  (log (str "Connection from " client-info))
+  (on-closed ch (fn [] (log (str "Disconnected from " client-info))))
+  (read-one-line ch))
 
 (defn -main
   [& args]
-  (notify "Setting up the world...")
+  (log "Loading configuration...")
+  (load-config "config.clj")
+  (log "Setting up the world...")
   (setup-world)
   (let [numrooms (count @rooms)]
-    (notify "The world now has" numrooms
-             (if (> numrooms 1) "rooms" "room")))
-  (notify "You are in:" (:name @@current-room))
-  (notify "Running MUD")
-  (main-loop)
-  (notify "\n\nGoodbye!"))
+    (log (str "The world now has " numrooms
+              (if (> numrooms 1) " rooms" " room"))))
+  (log (str "Booting network, address=" (:bind-address @config)
+            ", port=" (:port @config)))
+  (try
+    (start-tcp-server
+     client-handler {:port (:port @config)
+                     :host (:bind-address @config)
+                     :frame (string :utf-8 :delimiters ["\r\n"])})
+    (catch Exception e (str "caught exception: " (.getMessage e)))))

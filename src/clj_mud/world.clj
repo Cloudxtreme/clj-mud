@@ -8,6 +8,7 @@
 (def player-locations (ref #{}))
 (def room-contents (ref #{}))
 (def player-credentials (atom #{}))
+(def client-channels (atom {}))
 
 (defn inc-id
   "Return the next global object id"
