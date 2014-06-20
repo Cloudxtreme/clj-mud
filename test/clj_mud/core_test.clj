@@ -1,7 +1,7 @@
 (ns clj-mud.core-test
   (:require [clojure.test :refer :all]
             [clj-mud.core :refer :all]
-            [clj-mud.rooms :refer :all]
+            [clj-mud.room :refer :all]
             [clj-mud.world :refer :all]
             [clj-mud.test-helper :as test-helper]
             [lamina.core :refer :all]
@@ -71,26 +71,26 @@
     (register-command :pose mock-handler)
     (is (= "pose hello there" (normalize-input ":hello there"))))
 
-  (deftest test-parse-command-should-normlize-text
+  (deftest test-tokenize-command-should-normlize-text
     (register-command :say mock-handler)
     (register-command :pose mock-handler)
-    (is (= '(:say "This is super fun!") (parse-command "\"This is super fun!")))
-    (is (= '(:pose "foooooobar") (parse-command ":foooooobar"))))
+    (is (= '(:say "This is super fun!") (tokenize-command "\"This is super fun!")))
+    (is (= '(:pose "foooooobar") (tokenize-command ":foooooobar"))))
 
-  (deftest test-parse-command-should-split-string-into-list
+  (deftest test-tokenize-command-should-split-string-into-list
     (register-command :say mock-handler)
     (register-command :pose mock-handler)
     (register-command :look mock-handler)
     (register-command :go mock-handler)
-    (is (= '(:look "north") (parse-command "look north")))
-    (is (= '(:say "This is super fun, too!") (parse-command "say This is super fun, too!")))
-    (is (= '(:look) (parse-command "look"))))
+    (is (= '(:look "north") (tokenize-command "look north")))
+    (is (= '(:say "This is super fun, too!") (tokenize-command "say This is super fun, too!")))
+    (is (= '(:look) (tokenize-command "look"))))
 
-  (deftest test-parse-command-should-return-nil-if-no-trigger-found
+  (deftest test-tokenize-command-should-return-nil-if-no-trigger-found
     (register-command :say mock-handler)
     (register-command :pose mock-handler)
-    (is (nil? (parse-command "look north")))
-    (is (= '(:say "bar") (parse-command "say bar")))))
+    (is (nil? (tokenize-command "look north")))
+    (is (= '(:say "bar") (tokenize-command "say bar")))))
 
 (testing "Registering Commands"
   (deftest test-registering-a-command-should-append-to-command-handlers-atom

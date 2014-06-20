@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [clj-mud.core :refer :all]
             [clj-mud.world :refer :all]
-            [clj-mud.rooms :refer :all]))
+            [clj-mud.room :refer :all]))
 
 ;; Steal the default config to re-set it
 (def default-config @clj-mud.core/config)

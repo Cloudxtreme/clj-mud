@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [clojure.edn :as edn]
             [clj-mud.world :refer [current-room exits inc-id rooms client-channels]]
-            [clj-mud.rooms :refer :all]
+            [clj-mud.room :refer :all]
             [clojure.string :as string]
             [clj-time.core :as t]
             [clj-time.local :as l]
@@ -11,7 +11,7 @@
             [gloss.core :refer :all])
   (:gen-class))
 
-(def command-handlers (atom {}))
+(def command-handlers (atom {})) ;; Registered command handlers
 
 ;; Default configuration
 (def config (atom {:mud-name "ClojureMud"
@@ -20,10 +20,12 @@
                    :bind-address "0.0.0.0"}))
 
 (defn log
+  "Log a message to standard out"
   [message]
   (println (str "[" (l/local-now) "]: " message)))
 
 (defn load-config
+  "Try to load the specified configuration file, overriding the default config."
   [conf-file]
   (try
     (with-open [rdr (-> (io/resource conf-file)
@@ -33,22 +35,24 @@
     (catch Exception e (str "Unable to load configuration file: " (.getMessage e)))))
 
 (defn notify
+  "Send a message to the specified channel."
   [ch & message]
   (if message
     (enqueue ch (str (apply str message)))
     (enqueue ch "\n")))
 
 (defn normalize-input
+  "Normalize input by changing command shortcuts to full command names."
   [line]
   (let [trimmed-line (string/trim line)]
-    (if (= \" (first trimmed-line))
-      (str "say " (subs trimmed-line 1))
-      (if (= \: (first trimmed-line))
-        (str "pose " (subs trimmed-line 1))
-        ;; Otherwise, normal case.
-        trimmed-line))))
+    (case (first trimmed-line)
+      \" (str "say " (subs trimmed-line 1))
+      \: (str "pose " (subs trimmed-line 1))
+      ;; Default
+      trimmed-line)))
 
-(defn parse-command
+(defn tokenize-command
+  "Tokenize the commnd input."
   [line]
   (let [split-line (string/split (normalize-input line) #"\s" 2)]
     (if (not (empty? split-line))
@@ -141,7 +145,7 @@
 (defn dispatch-command
   [ch input]
   (if (not (empty? input))
-    (let [command (parse-command input)]
+    (let [command (tokenize-command input)]
       (if (nil? command)
         (notify ch "Huh? (Type \"help\" for help)")
         ((get-handler command) ch (get-args command))))))

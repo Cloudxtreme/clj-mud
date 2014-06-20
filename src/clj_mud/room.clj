@@ -1,13 +1,14 @@
-(ns clj-mud.rooms
+(ns clj-mud.room
   (:require [clj-mud.world :refer :all]))
+
+(defrecord Room [id name desc])
 
 (defn make-room
   "Make a Room and put it in the world"
   [name desc]
-  (let [room (atom {:id (inc-id), :name name, :desc desc})]
-    (do
-      (swap! rooms conj room)
-      room)))
+  (let [room (atom (Room. (inc-id) name desc))]
+    (swap! rooms conj room)
+    room))
 
 (defn find-room
   "Find a room in the rooms by id, or nil if no such room exists."
@@ -17,24 +18,21 @@
 (defn remove-room
   "Remove a room from the world"
   [room-atom]
-  (do
-    (swap! rooms disj room-atom)
-    room-atom))
+  (swap! rooms disj room-atom)
+  room-atom)
 
 (defn move-to
   "Move the player to a given room"
   [room]
-  (do
-    (compare-and-set! current-room @current-room room)
-    @current-room))
+  (compare-and-set! current-room @current-room room)
+  @current-room)
 
 (defn make-exit
   "Makes an exit from the source room to the destination room"
   [from to name]
   (let [exit {:from (:id @from), :to (:id @to), :name name}]
-    (do
-      (swap! exits conj exit)
-      exit)))
+    (swap! exits conj exit)
+    exit))
 
 (defn get-exits
   "Returns all outgoing exits for the specified room."
@@ -56,9 +54,8 @@
 (defn- change-attrib
   "Changes an attribute on a room atomically"
   [room attrib val]
-  (do
-    (swap! room assoc attrib val)
-    room))
+  (swap! room assoc attrib val)
+  room)
 
 (defn rename-room
   [room new-name]

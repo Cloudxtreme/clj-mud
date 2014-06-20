@@ -1,11 +1,12 @@
-(ns clj-mud.rooms-test
+(ns clj-mud.room-test
   (:require [clojure.test :refer :all]
             [clj-mud.world :refer :all]
-            [clj-mud.rooms :refer :all]
-            [clj-mud.test-helper :as test-helper]))
+            [clj-mud.room :refer :all]
+            [clj-mud.test-helper :as test-helper])
+  (:import clj_mud.room.Room))
 
-(def eg-den {:id 1 :name "The Den" :desc "The Den is nice"})
-(def eg-hall {:id 2 :name "The Hall" :desc "The Hallway is long"})
+(def eg-den (Room. 1 "The Den" "The Den is nice"))
+(def eg-hall (Room. 2 "The Hall" "The Hallway is long"))
 
 (defn make-den [] (make-room "The Den" "The Den is nice"))
 (defn make-hall [] (make-room "The Hall" "The Hallway is long"))
