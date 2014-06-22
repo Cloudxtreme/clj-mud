@@ -9,29 +9,35 @@
             [gloss.core :refer :all]))
 
 (def last-mock-arg (atom nil))
-(def notifications (atom []))
+(def notifications (atom {}))
 
 ;; Mock handler
 (defn mock-handler
   [ch args]
   (compare-and-set! last-mock-arg @last-mock-arg (first args)))
 
-(def mock-channel nil)
+(def mock-channel :mock-channel)
 
 (defn mock-enqueue
-  "Mock implementation of 'enqueue' that appends to notifications list"
+  "Mock implementation of 'enqueue' that appends to notifications list of the specified channel"
   [ch arg]
-  (swap! notifications conj arg))
+  (if (nil? (ch @notifications))
+    (swap! notifications assoc ch [arg])
+    (swap! notifications assoc ch (conj (ch @notifications) arg))))
 
-(defmacro with-mock-enqueue
+(defn mock-println
+  "Mock implementation of 'println' that does nothing"
+  [arg])
+
+(defmacro with-mock-io
   "Convenience macro to help capture println output."
   [& args]
-  `(with-redefs-fn {#'enqueue mock-enqueue} (fn [] ~@args)))
+  `(with-redefs-fn {#'enqueue mock-enqueue #'println mock-println} (fn [] ~@args)))
 
 (use-fixtures :each
   (fn [f]
     (test-helper/reset-global-state)
-    (compare-and-set! notifications @notifications [])
+    (compare-and-set! notifications @notifications {})
     (f)))
 
 (testing "Configuration File Loading"
@@ -108,21 +114,21 @@
 
 (testing "Dispatching commands"
   (deftest dispatch-command-test
-    (with-mock-enqueue (dispatch-command mock-channel "say Hello, world!"))
-    (is (= "You say, \"Hello!\"") (last @notifications))))
+    (with-mock-io (dispatch-command mock-channel "say Hello, world!"))
+    (is (= "You say, \"Hello!\"") (last (mock-channel @notifications)))))
 
 (testing "Handlers"
   (deftest say-handler-test
-    (with-mock-enqueue (say-handler mock-channel "Hello!"))
-    (is (= "You say, \"Hello!\"") (last @notifications)))
+    (with-mock-io (say-handler mock-channel "Hello!"))
+    (is (= "You say, \"Hello!\"") (last (mock-channel @notifications))))
 
   (deftest pose-handler-test
-    (with-mock-enqueue (pose-handler mock-channel "flaps around the room."))
-    (is (re-seq #"flaps around the room." (last @notifications))))
+    (with-mock-io (pose-handler mock-channel "flaps around the room."))
+    (is (re-seq #"flaps around the room." (last (mock-channel @notifications)))))
 
   (deftest look-handler-non-existent-rooms
-    (with-mock-enqueue (look-handler mock-channel))
-    (is (= ["You don't see that here"] @notifications)))
+    (with-mock-io (look-handler mock-channel))
+    (is (= ["You don't see that here"] (mock-channel @notifications))))
 
   (deftest look-handler-prints-current-room
     (let [den (make-room "The Den" "This is a nice den")
@@ -130,12 +136,12 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (with-mock-enqueue (look-handler mock-channel))
+      (with-mock-io (look-handler mock-channel))
       (is (= ["The Den"
-              "\n"
+              ""
               "This is a nice den"
-              "\n"
-              "    Exits: east"] @notifications))))
+              ""
+              "    Exits: east"] (mock-channel @notifications)))))
 
   (deftest walk-handler-moves-the-player
     (let [den (make-room "The Den" "This is a nice den")
@@ -144,9 +150,13 @@
       (make-exit hall den "west")
       (move-to den)
       (is (= den @current-room))
-      (with-mock-enqueue (walk-handler mock-channel "east"))
+      (with-mock-io (walk-handler mock-channel "east"))
       (is (= hall @current-room))))
 
+  (deftest walk-handler-notifies-of-incorrect-usage
+    (with-mock-io (walk-handler mock-channel nil))
+    (is (= "Go where?" (last (get @notifications mock-channel)))))
+  
   (deftest walk-handler-wont-move-to-nonexistent-exit
     (let [den (make-room "The Den" "This is a nice den")
           hall (make-room "The Hall" "A Long Hallway")]
@@ -154,9 +164,9 @@
       (make-exit hall den "west")
       (move-to den)
       (is (= den @current-room))
-      (with-mock-enqueue (walk-handler mock-channel "north"))
+      (with-mock-io (walk-handler mock-channel "north"))
       (is (= den @current-room))
-      (is (= "There's no exit in that direction!" (last @notifications)))))
+      (is (= "There's no exit in that direction!" (last (mock-channel @notifications))))))
 
   (deftest walk-handler-looks-at-new-room
     (let [den (make-room "The Den" "This is a nice den")
@@ -164,25 +174,30 @@
       (make-exit den hall "east")
       (make-exit hall den "west")
       (move-to den)
-      (with-mock-enqueue (walk-handler mock-channel "east"))
+      (with-mock-io (walk-handler mock-channel "east"))
       (is (= ["The Hall"
-              "\n"
+              ""
               "A Long Hallway"
-              "\n"
-              "    Exits: west"] @notifications))))
+              ""
+              "    Exits: west"] (mock-channel @notifications)))))
 
   (deftest help-handler-returns-at-least-one-line
     "We don't really care what it returns, just that it returns something."
-    (with-mock-enqueue (help-handler mock-channel))
-    (is (<= 1 (count @notifications)))))
+    (with-mock-io (help-handler mock-channel))
+    (is (<= 1 (count (mock-channel @notifications))))))
 
 (testing "Connecting Channels"
   (deftest channels-are-added-to-channel-set-on-connection
-    (channel-connected "Mock Channel" {:address "0:0:0:0:0:0:0:1%0"})
-    (is (= {"Mock Channel" {:address "0:0:0:0:0:0:0:1%0"}} @client-channels)))
+    (with-mock-io (channel-connected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
+    (is (= {mock-channel {:address "0:0:0:0:0:0:0:1%0"}} @client-channels)))
 
   (deftest channels-are-removed-from-channel-set-on-disconnect
-    (channel-connected "Mock Channel" {:address "0:0:0:0:0:0:0:1%0"})
+    (with-mock-io (channel-connected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
     (is (not (empty? @client-channels)))
-    (channel-disconnected "Mock Channel")
+    (with-mock-io (channel-disconnected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
     (is (empty? @client-channels))))
+
+(testing "Player Connection"
+  (deftest players-see-welcome-message-on-connection
+    (with-mock-io (channel-connected mock-channel {:address "127.0.0.1"}))
+    (is (<= 1 (count (mock-channel @notifications))))))

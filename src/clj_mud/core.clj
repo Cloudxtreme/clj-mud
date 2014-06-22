@@ -1,9 +1,9 @@
 (ns clj-mud.core
-  (:require [clojure.java.io :as io]
-            [clojure.edn :as edn]
-            [clj-mud.world :refer [current-room exits inc-id rooms client-channels]]
-            [clj-mud.room :refer :all]
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as string]
+            [clj-mud.world :refer :all]
+            [clj-mud.room :refer :all]
             [clj-time.core :as t]
             [clj-time.local :as l]
             [lamina.core :refer :all]
@@ -64,9 +64,9 @@
 
 (defn look [ch room]
   (notify ch (:name @room))
-  (notify ch "\n")
+  (notify ch "")
   (notify ch (:desc @room))
-  (notify ch "\n")
+  (notify ch "")
   (notify ch (str "    Exits: " (string/join ", " (get-exit-names room)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,12 +100,14 @@
 
 (defn walk-handler
   [ch direction]
-  (let [exit (find-exit-by-name @current-room direction)]
-    (if (nil? exit)
-      (notify ch "There's no exit in that direction!")
-      (do
-        (move-to (find-room (:to exit)))
-        (look ch @current-room)))))
+  (if (nil? direction)
+    (notify ch "Go where?")
+    (let [exit (find-exit-by-name @current-room direction)]
+      (if (nil? exit)
+        (notify ch "There's no exit in that direction!")
+        (do
+          (move-to (find-room (:to exit)))
+          (look ch @current-room))))))
 
 (defn setup-world
   "Builds a very simple starter world. "
@@ -166,16 +168,26 @@
 (defn channel-connected
   ""
   [ch client-info]
+  (log (str "Connection from " client-info))
+  (notify ch "")
+  (notify ch "---------------------------------------------------------------")
+  (notify ch "* Welcome to this Experimental Clojure Mud!                   *")
+  (notify ch "---------------------------------------------------------------")
+  (notify ch "")
+  (notify ch "Commands are: look, go, quit")
+  (notify ch "")
+  (notify ch "Ready.")
   (swap! client-channels assoc ch client-info))
 
 (defn channel-disconnected
   ""
-  [ch]
+  [ch client-info]
+  (log (str "Disconnect from " client-info))
   (swap! client-channels dissoc ch))
 
 (defn client-handler [ch client-info]
-  (log (str "Connection from " client-info))
-  (on-closed ch (fn [] (log (str "Disconnected from " client-info))))
+  (channel-connected ch client-info)
+  (on-closed ch (fn [] (channel-disconnected ch client-info)))
   (read-one-line ch))
 
 (defn -main
