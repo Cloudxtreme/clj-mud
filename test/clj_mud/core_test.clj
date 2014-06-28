@@ -118,6 +118,14 @@
     (is (= "You say, \"Hello!\"") (last (mock-channel @notifications)))))
 
 (testing "Handlers"
+  (deftest connect-handler-test
+    ;; Can't connect without a room to connect in
+    (make-room "The Hall" "The hall is long")
+    (is (= 0 (count @players)))
+    (with-mock-io (connect-handler mock-channel "bob"))
+    (is (= 1 (count @players)))
+    (is (= "bob" (:name @(last @players)))))
+  
   (deftest say-handler-test
     (with-mock-io (say-handler mock-channel "Hello!"))
     (is (= "You say, \"Hello!\"") (last (mock-channel @notifications))))

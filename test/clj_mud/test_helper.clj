@@ -5,7 +5,7 @@
             [clj-mud.room :refer :all]))
 
 ;; Steal the default config to re-set it
-(def default-config @clj-mud.core/config)
+(def default-config @clj-mud.world/config)
 
 (defn reset-global-state []
   (compare-and-set! next-id @next-id 0)

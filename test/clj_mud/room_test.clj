@@ -3,7 +3,8 @@
             [clj-mud.world :refer :all]
             [clj-mud.room :refer :all]
             [clj-mud.test-helper :as test-helper])
-  (:import clj_mud.room.Room))
+  (:import clj_mud.room.Room)
+  (:import clj_mud.room.Exit))
 
 (def eg-den (Room. 1 "The Den" "The Den is nice"))
 (def eg-hall (Room. 2 "The Hall" "The Hallway is long"))
@@ -102,10 +103,9 @@
           hall (find-room 2)
           garden (find-room 3)]
 
-      (is (= '({:from 1, :to 2, :name "east"}) (get-exits den)))
-      (is (= '({:from 2, :to 1, :name "west"}
-               {:from 2, :to 3, :name "up"}) (get-exits hall)))
-      (is (= '({:from 3, :to 2, :name "down"}) (get-exits garden)))))
+      (is (= (list (Exit. 1 2 "east")) (get-exits den)))
+      (is (= (list (Exit. 2 1 "west") (Exit. 2 3 "up")) (get-exits hall)))
+      (is (= (list (Exit. 3 2 "down")) (get-exits garden)))))
 
   (deftest test-get-exit-names-should-return-correct-names
     (make-world)
@@ -122,13 +122,13 @@
     (let [den (find-room 1)
           hall (find-room 2)
           garden (find-room 3)]
-      (is (= {:from 1, :to 2, :name "east"} (find-exit-by-name den "east")))
+      (is (= (Exit. 1 2 "east") (find-exit-by-name den "east")))
       (is (nil? (find-exit-by-name den "west")))
-      (is (= {:from 2, :to 1, :name "west"} (find-exit-by-name hall "west")))
-      (is (= {:from 2, :to 3, :name "up"} (find-exit-by-name hall "up")))
+      (is (= (Exit. 2 1 "west") (find-exit-by-name hall "west")))
+      (is (= (Exit. 2 3 "up") (find-exit-by-name hall "up")))
       (is (nil? (find-exit-by-name hall "down")))
       (is (nil? (find-exit-by-name hall "east")))
-      (is (= {:from 3, :to 2, :name "down"} (find-exit-by-name garden "down")))
+      (is (= (Exit. 3 2 "down") (find-exit-by-name garden "down")))
       (is (nil? (find-exit-by-name garden "west"))))))
 
 (testing "Navigating the World"

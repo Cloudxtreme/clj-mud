@@ -48,7 +48,7 @@
   (deftest test-player-starts-in-configured-starting-room-if-no-room-arg
     (make-alice)
     (is (= 1 (:location @(find-player 3))))
-    (swap! core/config assoc :start-room-id 2)
+    (swap! config assoc :start-room-id 2)
     (make-bob)
     (is (= 2 (:location @(find-player 4)))))
 
@@ -58,7 +58,14 @@
 
   (deftest test-player-cannot-be-created-if-start-room-does-not-exist
     (is (nil? (make-bob 99)))
-    (is (empty? @players))))
+    (is (empty? @players)))
+
+  (deftest cannot-make-two-players-with-the-same-name
+    (is (= 0 (count @players)))
+    (is (= player-bob @(make-player "Bob" 1)))
+    (is (= 1 (count @players)))
+    (is (= nil (make-player "Bob" 1)))
+    (is (= 1 (count @players)))))
 
 (testing "Finding Players"
   (deftest test-find-player-returns-player-if-exists
@@ -70,4 +77,11 @@
   (deftest test-find-player-returns-nil-if-player-does-not-exist
     (make-bob)
     (make-alice)
-    (is (nil? (find-player 999)))))
+    (is (nil? (find-player 999))))
+
+  (deftest test-find-player-by-name
+    (make-bob)
+    (make-alice)
+    (is (= player-bob @(find-player-by-name "Bob")))
+    (is (= player-alice @(find-player-by-name "Alice")))
+    (is (nil? (find-player-by-name "Joe")))))

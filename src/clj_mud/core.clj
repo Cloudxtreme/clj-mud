@@ -1,9 +1,8 @@
 (ns clj-mud.core
-  (:require [clojure.edn :as edn]
-            [clojure.java.io :as io]
-            [clojure.string :as string]
+  (:require [clojure.string :as string]
             [clj-mud.world :refer :all]
             [clj-mud.room :refer :all]
+            [clj-mud.player :refer :all]
             [clj-time.core :as t]
             [clj-time.local :as l]
             [lamina.core :refer :all]
@@ -13,28 +12,12 @@
 
 (def command-handlers (atom {})) ;; Registered command handlers
 
-;; Default configuration
-(def config (atom {:mud-name "ClojureMud"
-                   :start-room-id 1
-                   :port 8888
-                   :bind-address "0.0.0.0"}))
-
 (defn log
   "Log a message to standard out"
   [message]
   (println (str "[" (l/local-now) "]: " message)))
 
-(defn load-config
-  "Try to load the specified configuration file, overriding the default config."
-  [conf-file]
-  (try
-    (with-open [rdr (-> (io/resource conf-file)
-                        io/reader
-                        java.io.PushbackReader.)]
-      (compare-and-set! config @config (merge @config (edn/read rdr))))
-    (catch Exception e (str "Unable to load configuration file: " (.getMessage e)))))
-
-(defn notify
+(defn send-msg
   "Send a message to the specified channel."
   [ch & message]
   (if message
@@ -63,11 +46,11 @@
             (list trigger (second split-line))))))))
 
 (defn look [ch room]
-  (notify ch (:name @room))
-  (notify ch "")
-  (notify ch (:desc @room))
-  (notify ch "")
-  (notify ch (str "    Exits: " (string/join ", " (get-exit-names room)))))
+  (send-msg ch (:name @room))
+  (send-msg ch "")
+  (send-msg ch (:desc @room))
+  (send-msg ch "")
+  (send-msg ch (str "    Exits: " (string/join ", " (get-exit-names room)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Commands are stored as a map of triggers to command handlers.
@@ -79,35 +62,39 @@
 
 (defn help-handler
   [ch & args]
-  (notify ch "Oh dear. Don't be silly. Help isn't implemented yet.")
-  (notify ch "(but seriously, type 'quit' to quit)"))
+  (send-msg ch "Oh dear. Don't be silly. Help isn't implemented yet.")
+  (send-msg ch "(but seriously, type 'quit' to quit)"))
 
 ;; To be improved when multi-user support is added
 (defn say-handler
   [ch args]
-  (notify ch (str "You say, \"" args "\"")))
+  (send-msg ch (str "You say, \"" args "\"")))
 
 ;; To be improved when multi-user support is added
 (defn pose-handler
   [ch args]
-  (notify ch (str "*** [" args "]")))
+  (send-msg ch (str "*** [" args "]")))
 
 (defn look-handler
   [ch & args]
   (if (nil? @current-room)
-    (notify ch "You don't see that here")
+    (send-msg ch "You don't see that here")
     (look ch @current-room)))
 
 (defn walk-handler
   [ch direction]
   (if (nil? direction)
-    (notify ch "Go where?")
+    (send-msg ch "Go where?")
     (let [exit (find-exit-by-name @current-room direction)]
       (if (nil? exit)
-        (notify ch "There's no exit in that direction!")
+        (send-msg ch "There's no exit in that direction!")
         (do
           (move-to (find-room (:to exit)))
           (look ch @current-room))))))
+
+(defn connect-handler
+  [ch name]
+  (make-player name))
 
 (defn setup-world
   "Builds a very simple starter world. "
@@ -149,7 +136,7 @@
   (if (not (empty? input))
     (let [command (tokenize-command input)]
       (if (nil? command)
-        (notify ch "Huh? (Type \"help\" for help)")
+        (send-msg ch "Huh? (Type \"help\" for help)")
         ((get-handler command) ch (get-args command))))))
 
 (defn read-one-line
@@ -169,21 +156,23 @@
   ""
   [ch client-info]
   (log (str "Connection from " client-info))
-  (notify ch "")
-  (notify ch "---------------------------------------------------------------")
-  (notify ch "* Welcome to this Experimental Clojure Mud!                   *")
-  (notify ch "---------------------------------------------------------------")
-  (notify ch "")
-  (notify ch "Commands are: look, go, quit")
-  (notify ch "")
-  (notify ch "Ready.")
-  (swap! client-channels assoc ch client-info))
+  (send-msg ch "")
+  (send-msg ch "---------------------------------------------------------------")
+  (send-msg ch "* Welcome to this Experimental Clojure Mud!                   *")
+  (send-msg ch "---------------------------------------------------------------")
+  (send-msg ch "")
+  (send-msg ch "Commands are: look, go, quit")
+  (send-msg ch "")
+  (send-msg ch "Ready.")
+  (swap! client-channels assoc ch client-info)
+  (log (str "Channels now: " @client-channels)))
 
 (defn channel-disconnected
   ""
   [ch client-info]
   (log (str "Disconnect from " client-info))
-  (swap! client-channels dissoc ch))
+  (swap! client-channels dissoc ch)
+  (log (str "Channels now: " @client-channels)))
 
 (defn client-handler [ch client-info]
   (channel-connected ch client-info)

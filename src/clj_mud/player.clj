@@ -1,9 +1,16 @@
 (ns clj-mud.player
   (:require [clj-mud.world :refer :all]
-            [clj-mud.room :refer [find-room]]
-            [clj-mud.core :refer [config]]))
+            [clj-mud.room :refer [find-room]]))
 
 (defrecord Player [id name awake location])
+
+(defn find-player
+  [player-id]
+  (some #(if (= player-id (:id (deref %))) %) @players))
+
+(defn find-player-by-name
+  [name]
+  (some #(if (= name (:name (deref %))) %) @players))
 
 (defn make-player
   ([name]
@@ -11,14 +18,11 @@
        (if default-start-room-id
          (make-player name default-start-room-id))))
   ([name location-id]
-     (if (find-room location-id)
+     (if (and (find-room location-id)
+              (nil? (find-player-by-name name)))
        (let [player (atom (Player. (inc-id) name false location-id))]
          (swap! players conj player)
          player))))
-
-(defn find-player
-  [player-id]
-  (some #(if (= player-id (:id (deref %))) %) @players))
 
 (defn remove-player
   [player-id]
