@@ -3,10 +3,12 @@
             [clj-mud.core :refer :all]
             [clj-mud.room :refer :all]
             [clj-mud.world :refer :all]
+            [clj-mud.player :refer :all]
             [clj-mud.test-helper :as test-helper]
             [lamina.core :refer :all]
             [aleph.tcp :refer :all]
-            [gloss.core :refer :all]))
+            [gloss.core :refer :all])
+  (:import clj_mud.world.PlayerHandle))
 
 (def last-mock-arg (atom nil))
 (def notifications (atom {}))
@@ -31,8 +33,8 @@
 
 (defmacro with-mock-io
   "Convenience macro to help capture println output."
-  [& args]
-  `(with-redefs-fn {#'enqueue mock-enqueue #'println mock-println} (fn [] ~@args)))
+  [& body]
+  `(with-redefs-fn {#'enqueue mock-enqueue #'println mock-println} (fn [] (do ~@body))))
 
 (use-fixtures :each
   (fn [f]
@@ -118,13 +120,37 @@
     (is (= "You say, \"Hello!\"") (last (mock-channel @notifications)))))
 
 (testing "Handlers"
-  (deftest connect-handler-test
+  (deftest connect-handler-creates-player-if-needed
     ;; Can't connect without a room to connect in
     (make-room "The Hall" "The hall is long")
     (is (= 0 (count @players)))
-    (with-mock-io (connect-handler mock-channel "bob"))
+    (with-mock-io
+      (is (= "bob" (:name @(connect-handler mock-channel "bob")))))
     (is (= 1 (count @players)))
-    (is (= "bob" (:name @(last @players)))))
+    (with-mock-io
+      (is (= "bob" (:name @(last @players))))))
+
+  (deftest connect-handler-finds-player-if-exists
+    (make-room "The Hall" "The hall is long")
+    (make-player "bob" 1)
+    (is (= 1 (count @players)))
+    (with-mock-io
+      (is (= "bob" (:name @(connect-handler mock-channel "bob")))))
+    (is (= 1 (count @players))))
+
+  (deftest connect-handler-welcomes-player
+    (make-room "The Hall" "The hall is long")
+    (make-player "bob" 1)
+    (is (= 1 (count @players)))
+    (with-mock-io (connect-handler mock-channel "bob"))
+    (is (= "Welcome, bob!" (last (mock-channel @notifications)))))
+
+  (deftest connect-handler-makes-player-awake
+    (make-room "The Hall" "The hall is long")
+    (make-player "bob" 1)
+    (is (false? (:awake @(find-player-by-name "bob"))))
+    (with-mock-io (connect-handler mock-channel "bob"))
+    (is (:awake @(find-player-by-name "bob"))))
   
   (deftest say-handler-test
     (with-mock-io (say-handler mock-channel "Hello!"))
@@ -196,8 +222,9 @@
 
 (testing "Connecting Channels"
   (deftest channels-are-added-to-channel-set-on-connection
+    (is (= 0 (count @client-channels)))
     (with-mock-io (channel-connected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
-    (is (= {mock-channel {:address "0:0:0:0:0:0:0:1%0"}} @client-channels)))
+    (is (= 1 (count @client-channels))))
 
   (deftest channels-are-removed-from-channel-set-on-disconnect
     (with-mock-io (channel-connected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
@@ -209,3 +236,13 @@
   (deftest players-see-welcome-message-on-connection
     (with-mock-io (channel-connected mock-channel {:address "127.0.0.1"}))
     (is (<= 1 (count (mock-channel @notifications))))))
+
+(testing "Player Disconnection"
+  (deftest player-is-made-asleep-on-disconnect
+    (make-room "The Hall" "The hall is long")
+    (make-player "bob" 1)
+    (with-mock-io (channel-connected mock-channel {:address "127.0.0.8"}))
+    (with-mock-io (connect-handler mock-channel "bob"))
+    (is (:awake @(find-player-by-name "bob")))
+    (with-mock-io (channel-disconnected mock-channel {:address "127.0.0.8"}))
+    (is (false? (:awake @(find-player-by-name "bob"))))))

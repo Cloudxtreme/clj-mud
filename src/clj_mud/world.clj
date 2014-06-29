@@ -12,6 +12,8 @@
 (def player-credentials (atom #{}))
 (def client-channels (atom {}))
 
+(defrecord PlayerHandle [player-id client-info])
+
 (defn inc-id
   "Return the next global object id"
   []

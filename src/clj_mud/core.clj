@@ -8,7 +8,8 @@
             [lamina.core :refer :all]
             [aleph.tcp :refer :all]
             [gloss.core :refer :all])
-  (:gen-class))
+  (:gen-class)
+  (:import clj_mud.world.PlayerHandle))
 
 (def command-handlers (atom {})) ;; Registered command handlers
 
@@ -94,7 +95,16 @@
 
 (defn connect-handler
   [ch name]
-  (make-player name))
+  (let [player (or (find-player-by-name name)
+                   (make-player name))]
+    (do
+      (send-msg ch (str "Welcome, " name "!"))
+      (let [player-handle (get @client-channels ch)]
+        (if player-handle
+          (do
+            (swap! player-handle assoc :player-id (:id @player)))))
+      (swap! player assoc :awake true)
+      player)))
 
 (defn setup-world
   "Builds a very simple starter world. "
@@ -161,18 +171,23 @@
   (send-msg ch "* Welcome to this Experimental Clojure Mud!                   *")
   (send-msg ch "---------------------------------------------------------------")
   (send-msg ch "")
+  (send-msg ch "To connect, type: connect <username>")
   (send-msg ch "Commands are: look, go, quit")
   (send-msg ch "")
   (send-msg ch "Ready.")
-  (swap! client-channels assoc ch client-info)
-  (log (str "Channels now: " @client-channels)))
+  (swap! client-channels assoc ch (atom (PlayerHandle. nil client-info))))
 
 (defn channel-disconnected
   ""
   [ch client-info]
   (log (str "Disconnect from " client-info))
-  (swap! client-channels dissoc ch)
-  (log (str "Channels now: " @client-channels)))
+  ;; Ensure the player falls asleep
+  (let [player-handle (get @client-channels ch)]
+    (if (and player-handle
+             (:player-id @player-handle))
+      (let [player (find-player (:player-id @player-handle))]
+        (swap! player assoc :awake false))))
+  (swap! client-channels dissoc ch))
 
 (defn client-handler [ch client-info]
   (channel-connected ch client-info)
