@@ -4,41 +4,17 @@
             [clj-mud.room :refer :all]
             [clj-mud.world :refer :all]
             [clj-mud.player :refer :all]
-            [clj-mud.test-helper :as test-helper]
-            [lamina.core :refer :all]
-            [aleph.tcp :refer :all]
-            [gloss.core :refer :all])
+            [clj-mud.test-helper :refer :all])
   (:import clj_mud.world.PlayerHandle))
-
-(def last-mock-arg (atom nil))
-(def notifications (atom {}))
 
 ;; Mock handler
 (defn mock-handler
   [ch args]
   (compare-and-set! last-mock-arg @last-mock-arg (first args)))
 
-(def mock-channel :mock-channel)
-
-(defn mock-enqueue
-  "Mock implementation of 'enqueue' that appends to notifications list of the specified channel"
-  [ch arg]
-  (if (nil? (ch @notifications))
-    (swap! notifications assoc ch [arg])
-    (swap! notifications assoc ch (conj (ch @notifications) arg))))
-
-(defn mock-println
-  "Mock implementation of 'println' that does nothing"
-  [arg])
-
-(defmacro with-mock-io
-  "Convenience macro to help capture println output."
-  [& body]
-  `(with-redefs-fn {#'enqueue mock-enqueue #'println mock-println} (fn [] (do ~@body))))
-
 (use-fixtures :each
   (fn [f]
-    (test-helper/reset-global-state)
+    (reset-global-state)
     (compare-and-set! notifications @notifications {})
     (f)))
 
@@ -116,37 +92,38 @@
 
 (testing "Dispatching commands"
   (deftest dispatch-command-test
-    (with-mock-io (dispatch-command mock-channel "say Hello, world!"))
-    (is (= "You say, \"Hello!\"") (last (mock-channel @notifications)))))
+    (with-mock-io
+      (dispatch-command mock-channel "say Hello, world!")
+      (is (= "You say, \"Hello!\"") (last (mock-channel @notifications))))))
 
 (testing "Handlers"
   (deftest connect-handler-creates-player-if-needed
-    ;; Can't connect without a room to connect in
-    (make-room "The Hall" "The hall is long")
-    (is (= 0 (count @players)))
     (with-mock-io
-      (is (= "bob" (:name @(connect-handler mock-channel "bob")))))
-    (is (= 1 (count @players)))
-    (with-mock-io
+      (make-room "The Hall" "The hall is long")
+      (is (= 0 (count @players)))
+      (is (= "bob" (:name @(connect-handler mock-channel "bob"))))
+      (is (= 1 (count @players)))
       (is (= "bob" (:name @(last @players))))))
 
   (deftest connect-handler-finds-player-if-exists
     (make-room "The Hall" "The hall is long")
-    (make-player "bob" 1))
+    (with-mock-io (make-player "bob" 1)))
 
   (deftest connect-handler-welcomes-player
-    (make-room "The Hall" "The hall is long")
-    (make-player "bob" 1)
-    (is (= 1 (count @players)))
-    (with-mock-io (connect-handler mock-channel "bob"))
-    (is (= "Welcome, bob!" (last (mock-channel @notifications)))))
+    (with-mock-io
+      (make-room "The Hall" "The hall is long")
+      (make-player "bob" 1)
+      (is (= 1 (count @players)))
+      (connect-handler mock-channel "bob")
+      (is (= "Welcome, bob!" (last (mock-channel @notifications))))))
 
   (deftest connect-handler-makes-player-awake
-    (make-room "The Hall" "The hall is long")
-    (make-player "bob" 1)
-    (is (false? (:awake @(find-player-by-name "bob"))))
-    (with-mock-io (connect-handler mock-channel "bob"))
-    (is (:awake @(find-player-by-name "bob"))))
+    (with-mock-io
+      (make-room "The Hall" "The hall is long")
+      (make-player "bob" 1)
+      (is (false? (:awake @(find-player-by-name "bob"))))
+      (connect-handler mock-channel "bob")
+      (is (:awake @(find-player-by-name "bob")))))
   
   (deftest say-handler-test
     (with-mock-io (say-handler mock-channel "Hello!"))
@@ -161,55 +138,59 @@
     (is (= ["You don't see that here"] (mock-channel @notifications))))
 
   (deftest look-handler-prints-current-room
-    (let [den (make-room "The Den" "This is a nice den")
-          hall (make-room "The Hall" "A Long Hallway")]
-      (make-exit den hall "east")
-      (make-exit hall den "west")
-      (move-to den)
-      (with-mock-io (look-handler mock-channel))
-      (is (= ["The Den"
-              ""
-              "This is a nice den"
-              ""
-              "    Exits: east"] (mock-channel @notifications)))))
+    (with-mock-io
+      (let [den (make-room "The Den" "This is a nice den")
+            hall (make-room "The Hall" "A Long Hallway")]
+        (make-exit den hall "east")
+        (make-exit hall den "west")
+        (move-to den)
+        (look-handler mock-channel)
+        (is (= ["The Den"
+                ""
+                "This is a nice den"
+                ""
+                "    Exits: east"] (mock-channel @notifications))))))
 
   (deftest walk-handler-moves-the-player
-    (let [den (make-room "The Den" "This is a nice den")
-          hall (make-room "The Hall" "A Long Hallway")]
-      (make-exit den hall "east")
-      (make-exit hall den "west")
-      (move-to den)
-      (is (= den @current-room))
-      (with-mock-io (walk-handler mock-channel "east"))
-      (is (= hall @current-room))))
+    (with-mock-io
+      (let [den (make-room "The Den" "This is a nice den")
+            hall (make-room "The Hall" "A Long Hallway")]
+        (make-exit den hall "east")
+        (make-exit hall den "west")
+        (move-to den)
+        (is (= den @current-room))
+        (walk-handler mock-channel "east")
+        (is (= hall @current-room)))))
 
   (deftest walk-handler-notifies-of-incorrect-usage
     (with-mock-io (walk-handler mock-channel nil))
     (is (= "Go where?" (last (get @notifications mock-channel)))))
   
   (deftest walk-handler-wont-move-to-nonexistent-exit
-    (let [den (make-room "The Den" "This is a nice den")
-          hall (make-room "The Hall" "A Long Hallway")]
-      (make-exit den hall "east")
-      (make-exit hall den "west")
-      (move-to den)
-      (is (= den @current-room))
-      (with-mock-io (walk-handler mock-channel "north"))
-      (is (= den @current-room))
-      (is (= "There's no exit in that direction!" (last (mock-channel @notifications))))))
+    (with-mock-io
+      (let [den (make-room "The Den" "This is a nice den")
+            hall (make-room "The Hall" "A Long Hallway")]
+        (make-exit den hall "east")
+        (make-exit hall den "west")
+        (move-to den)
+        (is (= den @current-room))
+        (walk-handler mock-channel "north")
+        (is (= den @current-room))
+        (is (= "There's no exit in that direction!" (last (mock-channel @notifications)))))))
 
   (deftest walk-handler-looks-at-new-room
-    (let [den (make-room "The Den" "This is a nice den")
-          hall (make-room "The Hall" "A Long Hallway")]
-      (make-exit den hall "east")
-      (make-exit hall den "west")
-      (move-to den)
-      (with-mock-io (walk-handler mock-channel "east"))
-      (is (= ["The Hall"
-              ""
-              "A Long Hallway"
-              ""
-              "    Exits: west"] (mock-channel @notifications)))))
+    (with-mock-io
+      (let [den (make-room "The Den" "This is a nice den")
+            hall (make-room "The Hall" "A Long Hallway")]
+        (make-exit den hall "east")
+        (make-exit hall den "west")
+        (move-to den)
+        (walk-handler mock-channel "east")
+        (is (= ["The Hall"
+                ""
+                "A Long Hallway"
+                ""
+                "    Exits: west"] (mock-channel @notifications))))))
 
   (deftest help-handler-returns-at-least-one-line
     "We don't really care what it returns, just that it returns something."
@@ -223,10 +204,11 @@
     (is (= 1 (count @client-channels))))
 
   (deftest channels-are-removed-from-channel-set-on-disconnect
-    (with-mock-io (channel-connected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
-    (is (not (empty? @client-channels)))
-    (with-mock-io (channel-disconnected mock-channel {:address "0:0:0:0:0:0:0:1%0"}))
-    (is (empty? @client-channels))))
+    (with-mock-io
+      (channel-connected mock-channel {:address "0:0:0:0:0:0:0:1%0"})
+      (is (not (empty? @client-channels)))
+      (channel-disconnected mock-channel {:address "0:0:0:0:0:0:0:1%0"})
+      (is (empty? @client-channels)))))
 
 (testing "Player Connection"
   (deftest players-see-welcome-message-on-connection
@@ -235,10 +217,12 @@
 
 (testing "Player Disconnection"
   (deftest player-is-made-asleep-on-disconnect
-    (make-room "The Hall" "The hall is long")
-    (make-player "bob" 1)
-    (with-mock-io (channel-connected mock-channel {:address "127.0.0.8"}))
-    (with-mock-io (connect-handler mock-channel "bob"))
-    (is (:awake @(find-player-by-name "bob")))
-    (with-mock-io (channel-disconnected mock-channel {:address "127.0.0.8"}))
-    (is (false? (:awake @(find-player-by-name "bob"))))))
+    (with-mock-io
+      (make-room "The Hall" "The hall is long")
+      (make-player "bob" 1)
+      (channel-connected mock-channel {:address "127.0.0.8"})
+      (is (false? (:awake @(find-player-by-name "bob"))))
+      (connect-handler mock-channel "bob")
+      (is (:awake @(find-player-by-name "bob")))
+      (channel-disconnected mock-channel {:address "127.0.0.8"})
+      (is (false? (:awake @(find-player-by-name "bob")))))))

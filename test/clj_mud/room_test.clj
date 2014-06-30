@@ -3,7 +3,7 @@
             [clj-mud.world :refer :all]
             [clj-mud.player :refer :all]
             [clj-mud.room :refer :all]
-            [clj-mud.test-helper :as test-helper])
+            [clj-mud.test-helper :refer :all])
   (:import clj_mud.room.Room)
   (:import clj_mud.room.Exit))
 
@@ -25,7 +25,7 @@
 
 (use-fixtures :each
   (fn [f]
-    (test-helper/reset-global-state)
+    (reset-global-state)
     (f)))
 
 (testing "Making and Removing Rooms"
@@ -151,31 +151,33 @@
 (testing "Room Contents"
   (deftest players-at-returns-all-players-in-a-room
 
-    (let [den (make-den)
-          hall (make-hall)
-          bob (make-player "Bob")
-          alice (make-player "Alice")
-          jim (make-player "Jim")]
-      (is (= (set [@bob @alice @jim]) (set (map #(deref %) (players-at den)))))
-      (is (= (set []) (set (map #(deref %) (players-at hall)))))
+    (with-mock-io
+      (let [den (make-den)
+            hall (make-hall)
+            bob (make-player "Bob")
+            alice (make-player "Alice")
+            jim (make-player "Jim")]
+        (is (= (set [@bob @alice @jim]) (set (map #(deref %) (players-at den)))))
+        (is (= (set []) (set (map #(deref %) (players-at hall)))))
 
-      (move-player bob hall)
+        (move-player bob hall)
 
-      (is (= (set [@alice @jim])(set (map #(deref %) (players-at den)))))
-      (is (= (set [@bob]) (set (map #(deref %) (players-at hall))))))))
+        (is (= (set [@alice @jim])(set (map #(deref %) (players-at den)))))
+        (is (= (set [@bob]) (set (map #(deref %) (players-at hall)))))))))
 
 (testing "Room Mutability"
   (deftest rename-room-changes-room-name-at-atom-level
-    (make-den)
-    (let [my-room-ref (find-room 1)]
-      (is (= "The Den" (:name @(find-room 1))))
-      (is (= "The Den" (:name @my-room-ref)))
-      (rename-room (find-room 1) "The Living Room")
-      (is (= "The Living Room" (:name @my-room-ref)))
-      (is (= "The Living Room" (:name @(find-room 1))))
-      (rename-room my-room-ref "The Bathroom")
-      (is (= "The Bathroom" (:name @my-room-ref)))
-      (is (= "The Bathroom" (:name @(find-room 1))))))
+    (with-mock-io
+      (make-den)
+      (let [my-room-ref (find-room 1)]
+        (is (= "The Den" (:name @(find-room 1))))
+        (is (= "The Den" (:name @my-room-ref)))
+        (rename-room (find-room 1) "The Living Room")
+        (is (= "The Living Room" (:name @my-room-ref)))
+        (is (= "The Living Room" (:name @(find-room 1))))
+        (rename-room my-room-ref "The Bathroom")
+        (is (= "The Bathroom" (:name @my-room-ref)))
+        (is (= "The Bathroom" (:name @(find-room 1)))))))
 
   (deftest describe-room-changes-room-description-at-atom-level
     (let [den (make-den)]

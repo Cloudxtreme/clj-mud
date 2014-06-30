@@ -3,20 +3,19 @@
             [clj-mud.room :refer :all]
             [clj-mud.player :refer :all]
             [clj-mud.world :refer :all]
-            [clj-mud.core :as core]
-            [clj-mud.test-helper :as test-helper])
+            [clj-mud.test-helper :refer :all])
   (:import clj_mud.player.Player))
 
 (defn make-hall [] (make-room "The Hall" "The hall is long"))
 (defn make-lounge [] (make-room "The Lounge" "The lounge is pretty OK"))
 (defn make-bob
-  ([start-room-id] (make-player "Bob" start-room-id))
-  ([] (make-player "Bob")))
-(defn make-alice [] (make-player "Alice"))
+  ([start-room-id] (with-mock-io (make-player "Bob" start-room-id)))
+  ([] (with-mock-io (make-player "Bob"))))
+(defn make-alice [] (with-mock-io (make-player "Alice")))
 
 (use-fixtures :each
   (fn [f]
-    (test-helper/reset-global-state)
+    (reset-global-state)
     (make-hall)
     (make-lounge)
     (f)))
@@ -61,17 +60,19 @@
     (is (empty? @players)))
 
   (deftest cannot-make-two-players-with-the-same-name
-    (is (= 0 (count @players)))
-    (is (= player-bob @(make-player "Bob" 1)))
-    (is (= 1 (count @players)))
-    (is (= nil (make-player "Bob" 1)))
-    (is (= 1 (count @players)))))
+    (with-mock-io
+      (is (= 0 (count @players)))
+      (is (= player-bob @(make-player "Bob" 1)))
+      (is (= 1 (count @players)))
+      (is (= nil (make-player "Bob" 1)))
+      (is (= 1 (count @players))))))
 
 (testing "Moving Players"
   (deftest test-location-returns-current-location
-    (make-bob)
-    (is (= 1 (:location @(find-player-by-name "Bob"))))
-    (move-player (find-player-by-name "Bob") (find-room 2))))
+    (with-mock-io
+      (make-bob)
+      (is (= 1 (:location @(find-player-by-name "Bob"))))
+      (move-player (find-player-by-name "Bob") (find-room 2)))))
 
 (testing "Finding Players"
   (deftest test-find-player-returns-player-if-exists

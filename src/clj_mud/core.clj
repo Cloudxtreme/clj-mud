@@ -91,6 +91,8 @@
   (let [player (or (find-player-by-name name)
                    (make-player name))]
     (do
+      (if (ch @client-channels)
+        (swap! (ch @client-channels) assoc :player-id (:id @player)))
       (swap! player assoc :awake true)
       (send-msg ch (str "Welcome, " name "!"))
       player)))
@@ -172,9 +174,8 @@
   [ch client-info]
   (log (str "Disconnect from " client-info))
   ;; Ensure the player falls asleep
-  (let [player-handle (get @client-channels ch)]
-    (if (and player-handle
-             (:player-id @player-handle))
+  (let [player-handle (ch @client-channels)]
+    (if (and player-handle (:player-id @player-handle))
       (let [player (find-player (:player-id @player-handle))]
         (swap! player assoc :awake false))))
   (swap! client-channels dissoc ch))
