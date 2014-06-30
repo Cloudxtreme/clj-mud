@@ -18,11 +18,21 @@
        (if default-start-room-id
          (make-player name default-start-room-id))))
   ([name location-id]
+     (log (str "Making player " name " at location " location-id))
      (if (and (find-room location-id)
               (nil? (find-player-by-name name)))
        (let [player (atom (Player. (inc-id) name false location-id))]
          (swap! players conj player)
          player))))
+
+(defn move-player
+  [player room]
+  (log (str "Moving player " (:name @player) " to location " (:id @room)))
+  (swap! player assoc :location (:id @room)))
+
+(defn players-at
+  [room]
+  (clojure.set/select #(= (:id @room) (:location @%)) @players))
 
 (defn remove-player
   [player-id]

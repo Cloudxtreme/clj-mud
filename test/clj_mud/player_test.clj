@@ -67,6 +67,12 @@
     (is (= nil (make-player "Bob" 1)))
     (is (= 1 (count @players)))))
 
+(testing "Moving Players"
+  (deftest test-location-returns-current-location
+    (make-bob)
+    (is (= 1 (:location @(find-player-by-name "Bob"))))
+    (move-player (find-player-by-name "Bob") (find-room 2))))
+
 (testing "Finding Players"
   (deftest test-find-player-returns-player-if-exists
     (make-bob)

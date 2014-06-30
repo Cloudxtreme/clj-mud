@@ -132,11 +132,7 @@
 
   (deftest connect-handler-finds-player-if-exists
     (make-room "The Hall" "The hall is long")
-    (make-player "bob" 1)
-    (is (= 1 (count @players)))
-    (with-mock-io
-      (is (= "bob" (:name @(connect-handler mock-channel "bob")))))
-    (is (= 1 (count @players))))
+    (make-player "bob" 1))
 
   (deftest connect-handler-welcomes-player
     (make-room "The Hall" "The hall is long")

@@ -1,5 +1,7 @@
 (ns clj-mud.world
   (:require [clojure.edn :as edn]
+            [clj-time.core :as t]
+            [clj-time.local :as l]
             [clojure.java.io :as io]))
 
 (def next-id (atom 0))
@@ -36,3 +38,8 @@
                         java.io.PushbackReader.)]
       (compare-and-set! config @config (merge @config (edn/read rdr))))
     (catch Exception e (str "Unable to load configuration file: " (.getMessage e)))))
+
+(defn log
+  "Log a message to standard out"
+  [message]
+  (println (str "[" (l/local-now) "]: " message)))

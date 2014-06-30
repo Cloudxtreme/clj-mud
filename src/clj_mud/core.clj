@@ -3,8 +3,6 @@
             [clj-mud.world :refer :all]
             [clj-mud.room :refer :all]
             [clj-mud.player :refer :all]
-            [clj-time.core :as t]
-            [clj-time.local :as l]
             [lamina.core :refer :all]
             [aleph.tcp :refer :all]
             [gloss.core :refer :all])
@@ -12,11 +10,6 @@
   (:import clj_mud.world.PlayerHandle))
 
 (def command-handlers (atom {})) ;; Registered command handlers
-
-(defn log
-  "Log a message to standard out"
-  [message]
-  (println (str "[" (l/local-now) "]: " message)))
 
 (defn send-msg
   "Send a message to the specified channel."
@@ -98,12 +91,8 @@
   (let [player (or (find-player-by-name name)
                    (make-player name))]
     (do
-      (send-msg ch (str "Welcome, " name "!"))
-      (let [player-handle (get @client-channels ch)]
-        (if player-handle
-          (do
-            (swap! player-handle assoc :player-id (:id @player)))))
       (swap! player assoc :awake true)
+      (send-msg ch (str "Welcome, " name "!"))
       player)))
 
 (defn setup-world
@@ -114,6 +103,7 @@
   (register-command :go walk-handler)
   (register-command :say say-handler)
   (register-command :pose pose-handler)
+  (register-command :connect connect-handler)
 
   (def wizard-den
     (make-room "The Center of the Universe" "The Room at the Center of it All"))

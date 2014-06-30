@@ -1,6 +1,7 @@
 (ns clj-mud.room-test
   (:require [clojure.test :refer :all]
             [clj-mud.world :refer :all]
+            [clj-mud.player :refer :all]
             [clj-mud.room :refer :all]
             [clj-mud.test-helper :as test-helper])
   (:import clj_mud.room.Room)
@@ -146,6 +147,22 @@
           hall (make-hall)]
       (is (= eg-den @(move-to den)))
       (is (= eg-hall @(move-to hall))))))
+
+(testing "Room Contents"
+  (deftest players-at-returns-all-players-in-a-room
+
+    (let [den (make-den)
+          hall (make-hall)
+          bob (make-player "Bob")
+          alice (make-player "Alice")
+          jim (make-player "Jim")]
+      (is (= (set [@bob @alice @jim]) (set (map #(deref %) (players-at den)))))
+      (is (= (set []) (set (map #(deref %) (players-at hall)))))
+
+      (move-player bob hall)
+
+      (is (= (set [@alice @jim])(set (map #(deref %) (players-at den)))))
+      (is (= (set [@bob]) (set (map #(deref %) (players-at hall))))))))
 
 (testing "Room Mutability"
   (deftest rename-room-changes-room-name-at-atom-level
