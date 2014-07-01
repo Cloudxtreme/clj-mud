@@ -34,6 +34,17 @@
   [room]
   (clojure.set/select #(= (:id @room) (:location @%)) @players))
 
+(defn find-player-by-channel
+  [ch]
+  (let [handle (get @client-channels ch)]
+    (if (and handle (:player-id @handle))
+      (find-player (:player-id @handle)))))
+
+(defn player-location
+  [player]
+  (if (:location @player)
+    (find-room (:location @player))))
+
 (defn remove-player
   [player-id]
   (let [player (find-player player-id)]

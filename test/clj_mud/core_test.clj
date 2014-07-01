@@ -133,34 +133,38 @@
     (with-mock-io (pose-handler mock-channel "flaps around the room."))
     (is (re-seq #"flaps around the room." (last (mock-channel @notifications)))))
 
-  (deftest look-handler-non-existent-rooms
-    (with-mock-io (look-handler mock-channel))
-    (is (= ["You don't see that here"] (mock-channel @notifications))))
-
   (deftest look-handler-prints-current-room
     (with-mock-io
-      (let [den (make-room "The Den" "This is a nice den")
-            hall (make-room "The Hall" "A Long Hallway")]
+      (let [hall (make-room "The Hall" "A Long Hallway")
+            den (make-room "The Den" "This is a nice den")
+            bob (make-player "Bob")]
         (make-exit den hall "east")
         (make-exit hall den "west")
-        (move-to den)
+        (channel-connected mock-channel {:address "127.0.0.8"})
+        (connect-handler mock-channel "Bob")
+        (move-player bob den)
         (look-handler mock-channel)
-        (is (= ["The Den"
-                ""
-                "This is a nice den"
-                ""
-                "    Exits: east"] (mock-channel @notifications))))))
+        (is (= (list "The Den"
+                     ""
+                     "This is a nice den"
+                     ""
+                     "    Exits: east")
+               (take-last 5 (mock-channel @notifications)))))))
 
   (deftest walk-handler-moves-the-player
     (with-mock-io
       (let [den (make-room "The Den" "This is a nice den")
-            hall (make-room "The Hall" "A Long Hallway")]
+            hall (make-room "The Hall" "A Long Hallway")
+            bob (make-player "Bob")]
         (make-exit den hall "east")
         (make-exit hall den "west")
-        (move-to den)
-        (is (= den @current-room))
+        (channel-connected mock-channel {:address "127.0.0.8"})
+        (connect-handler mock-channel "Bob")
+        (move-player bob den)
+        (is (= den (player-location bob)))
         (walk-handler mock-channel "east")
-        (is (= hall @current-room)))))
+        (is (= hall (player-location bob)))
+        )))
 
   (deftest walk-handler-notifies-of-incorrect-usage
     (with-mock-io (walk-handler mock-channel nil))
@@ -169,28 +173,35 @@
   (deftest walk-handler-wont-move-to-nonexistent-exit
     (with-mock-io
       (let [den (make-room "The Den" "This is a nice den")
-            hall (make-room "The Hall" "A Long Hallway")]
+            hall (make-room "The Hall" "A Long Hallway")
+            bob (make-player "Bob")]
         (make-exit den hall "east")
         (make-exit hall den "west")
-        (move-to den)
-        (is (= den @current-room))
+        (channel-connected mock-channel {:address "127.0.0.8"})
+        (connect-handler mock-channel "Bob")
+        (move-player bob den)
+        (is (= den (player-location bob)))
         (walk-handler mock-channel "north")
-        (is (= den @current-room))
+        (is (= den (player-location bob)))
         (is (= "There's no exit in that direction!" (last (mock-channel @notifications)))))))
 
   (deftest walk-handler-looks-at-new-room
     (with-mock-io
       (let [den (make-room "The Den" "This is a nice den")
-            hall (make-room "The Hall" "A Long Hallway")]
+            hall (make-room "The Hall" "A Long Hallway")
+            bob (make-player "Bob")]
         (make-exit den hall "east")
         (make-exit hall den "west")
-        (move-to den)
+        (channel-connected mock-channel {:address "127.0.0.8"})
+        (connect-handler mock-channel "Bob")
+        (move-player bob den)
         (walk-handler mock-channel "east")
-        (is (= ["The Hall"
-                ""
-                "A Long Hallway"
-                ""
-                "    Exits: west"] (mock-channel @notifications))))))
+        (is (= (list "The Hall"
+                     ""
+                     "A Long Hallway"
+                     ""
+                     "    Exits: west")
+               (take-last 5 (mock-channel @notifications)))))))
 
   (deftest help-handler-returns-at-least-one-line
     "We don't really care what it returns, just that it returns something."

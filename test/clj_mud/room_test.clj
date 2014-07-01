@@ -132,25 +132,8 @@
       (is (= (Exit. 3 2 "down") (find-exit-by-name garden "down")))
       (is (nil? (find-exit-by-name garden "west"))))))
 
-(testing "Navigating the World"
-  (deftest test-move-sets-current-room
-    (is (nil? @current-room))
-    (let [den (make-den)
-          hall (make-hall)]
-      (move-to den)
-      (is (= eg-den @@current-room))
-      (move-to hall)
-      (is (= eg-hall @@current-room))))
-
-  (deftest test-move-returns-new-room
-    (let [den (make-den)
-          hall (make-hall)]
-      (is (= eg-den @(move-to den)))
-      (is (= eg-hall @(move-to hall))))))
-
 (testing "Room Contents"
   (deftest players-at-returns-all-players-in-a-room
-
     (with-mock-io
       (let [den (make-den)
             hall (make-hall)

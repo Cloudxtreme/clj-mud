@@ -71,28 +71,29 @@
 
 (defn look-handler
   [ch & args]
-  (if (nil? @current-room)
-    (send-msg ch "You don't see that here")
-    (look ch @current-room)))
+  (let [player (find-player-by-channel ch)]
+    (look ch (player-location player))))
 
 (defn walk-handler
   [ch direction]
   (if (nil? direction)
     (send-msg ch "Go where?")
-    (let [exit (find-exit-by-name @current-room direction)]
+    (let [player (find-player-by-channel ch)
+          old-room (player-location player)
+          exit (find-exit-by-name old-room direction)]
       (if (nil? exit)
         (send-msg ch "There's no exit in that direction!")
-        (do
-          (move-to (find-room (:to exit)))
-          (look ch @current-room))))))
+        (let [new-room (find-room (:to exit))]
+          (move-player player new-room)
+          (look ch new-room))))))
 
 (defn connect-handler
   [ch name]
   (let [player (or (find-player-by-name name)
                    (make-player name))]
     (do
-      (if (ch @client-channels)
-        (swap! (ch @client-channels) assoc :player-id (:id @player)))
+      (if (get @client-channels ch)
+        (swap! (get @client-channels ch) assoc :player-id (:id @player)))
       (swap! player assoc :awake true)
       (send-msg ch (str "Welcome, " name "!"))
       player)))
@@ -121,9 +122,7 @@
   (make-exit hallway foyer "east")
   (make-exit foyer hallway "west")
   (make-exit foyer bedroom "north")
-  (make-exit bedroom foyer "south")
-
-  (move-to wizard-den))
+  (make-exit bedroom foyer "south"))
 
 (defn- get-args [command]
   (if (not (nil? command))
@@ -174,7 +173,7 @@
   [ch client-info]
   (log (str "Disconnect from " client-info))
   ;; Ensure the player falls asleep
-  (let [player-handle (ch @client-channels)]
+  (let [player-handle (get @client-channels ch)]
     (if (and player-handle (:player-id @player-handle))
       (let [player (find-player (:player-id @player-handle))]
         (swap! player assoc :awake false))))

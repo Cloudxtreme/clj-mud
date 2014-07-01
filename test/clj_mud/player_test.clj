@@ -3,6 +3,7 @@
             [clj-mud.room :refer :all]
             [clj-mud.player :refer :all]
             [clj-mud.world :refer :all]
+            [clj-mud.core :refer :all]
             [clj-mud.test-helper :refer :all])
   (:import clj_mud.player.Player))
 
@@ -80,6 +81,13 @@
     (make-alice)
     (is (= player-bob @(find-player 3)))
     (is (= player-alice @(find-player 4))))
+
+  (deftest find-player-by-channel-returns-player
+    (with-mock-io
+      (let [bob (make-player "bob")]
+        (channel-connected mock-channel {:address "127.0.0.8"})
+        (connect-handler mock-channel "bob")
+        (is (= @bob @(find-player-by-channel mock-channel))))))
 
   (deftest test-find-player-returns-nil-if-player-does-not-exist
     (make-bob)

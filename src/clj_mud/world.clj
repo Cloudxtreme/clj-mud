@@ -6,7 +6,6 @@
 
 (def next-id (atom 0))
 (def rooms (atom #{}))
-(def current-room (atom nil))
 (def exits (atom #{}))
 (def players (atom #{}))
 (def player-locations (ref #{}))

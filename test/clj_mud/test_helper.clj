@@ -13,7 +13,6 @@
 (defn reset-global-state []
   (compare-and-set! next-id @next-id 0)
   (compare-and-set! rooms @rooms #{})
-  (compare-and-set! current-room @current-room nil)
   (compare-and-set! exits @exits #{})
   (compare-and-set! players @players #{})
   (compare-and-set! command-handlers @command-handlers {})
@@ -23,7 +22,8 @@
 (defmacro with-mock-io
   "Convenience macro to help capture println output."
   [& body]
-  `(with-redefs-fn {#'enqueue mock-enqueue #'println mock-println} (fn [] (do ~@body))))
+  ;; `(with-redefs-fn {#'enqueue mock-enqueue #'println mock-println} (fn [] (do ~@body)))
+  `(with-redefs-fn {#'enqueue mock-enqueue} (fn [] (do ~@body))))
 
 (def mock-channel :mock-channel)
 (def last-mock-arg (atom nil))
@@ -31,7 +31,7 @@
 
 (defn mock-println
   "Mock implementation of 'println' that does nothing"
-  [arg])
+  [& args])
 
 (defn mock-enqueue
   "Mock implementation of 'enqueue' that appends to notifications list of the specified channel"

@@ -28,12 +28,6 @@
   (swap! rooms disj room-atom)
   room-atom)
 
-(defn move-to
-  "Move the player to a given room"
-  [room]
-  (compare-and-set! current-room @current-room room)
-  @current-room)
-
 (defn make-exit
   "Makes an exit from the source room to the destination room"
   [from to name]
