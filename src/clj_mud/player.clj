@@ -27,7 +27,8 @@
 
 (defn move-player
   [player room]
-  (log (str "Moving player " (:name @player) " to location " (:id @room)))
+  (log (str "Moving player " (:name @player) " to location "
+            (:name @room) " (#" (:id @room) ")"))
   (swap! player assoc :location (:id @room)))
 
 (defn players-at
